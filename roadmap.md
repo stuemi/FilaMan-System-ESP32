@@ -32,7 +32,7 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 - [x] Den POST-Request für Workflow 1 implementieren.
 - [x] Den POST-Request für Workflow 2 implementieren.
 - [x] Code für `api.h` und `api.cpp` schreiben und bereinigen.
-- [ ] Code für `main.cpp` anpassen (Weiche nutzen, Schreib-Logik entfernen).
+- [x] Code für `main.cpp` anpassen (Weiche nutzen, Schreib-Logik entfernen).
 - [ ] Auf den ESP32 flashen und testen.
 
 ## Geplante Datei-Änderungen (Architektur-Umbau)
