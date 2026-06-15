@@ -132,7 +132,7 @@ A+ green*
 ## Documentation
 
 ### Relevant Links
-- [FilaMan-System](https://github.com/Fire-Devils/filaman-system)
+- [Bambuddy](https://github.com/bambuddy)
 - [PlatformIO Documentation](https://docs.platformio.org/)
 
 ### Tutorials and Examples

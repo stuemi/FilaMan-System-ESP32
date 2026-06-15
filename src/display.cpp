@@ -283,10 +283,10 @@ void oledShowTopRow() {
         // Backend
         x_pos -= x_offset;  // change x position to the left
         if (filamanConnected) {
-            display.drawBitmap(x_pos, 0, bitmap_spoolman_on , symbol_width, symbol_height, WHITE);
+            display.drawBitmap(x_pos, 0, bitmap_bambuddy_on , symbol_width, symbol_height, WHITE);
         } else {
             if(iconToggle){
-                display.drawBitmap(x_pos, 0, bitmap_spoolman_on , symbol_width, symbol_height, WHITE);
+                display.drawBitmap(x_pos, 0, bitmap_bambuddy_on , symbol_width, symbol_height, WHITE);
                 display.drawLine(x_pos, symbol_height-1, x_pos + symbol_width, 0, WHITE);
                 display.drawLine(x_pos+1, symbol_height-1, x_pos+1 + symbol_width, 0, WHITE);
             }
@@ -302,28 +302,6 @@ void oledShowTopRow() {
             display.drawLine(x_pos, symbol_height-1, x_pos + symbol_width, 0, WHITE);
             display.drawLine(x_pos+1, symbol_height-1, x_pos+1 + symbol_width, 0, WHITE);
         }
-    }
-
-    display.display();
-}
-
-void oledShowIcon(const char* icon) {
-    oledcleardata();
-
-    uint16_t iconSize = OLED_DATA_END-OLED_DATA_START;
-    uint16_t iconStart = (SCREEN_WIDTH - iconSize) / 2;
-
-    if (strcmp(icon, "failed") == 0) {
-        display.drawBitmap(iconStart, OLED_DATA_START, icon_failed , iconSize, iconSize, WHITE);
-    }
-    else if (strcmp(icon, "success") == 0) {
-        display.drawBitmap(iconStart, OLED_DATA_START, icon_success , iconSize, iconSize, WHITE);
-    }
-    else if (strcmp(icon, "transfer") == 0) {
-        display.drawBitmap(iconStart, OLED_DATA_START, icon_transfer , iconSize, iconSize, WHITE);
-    }
-    else if (strcmp(icon, "loading") == 0) {
-        display.drawBitmap(iconStart, OLED_DATA_START, icon_loading , iconSize, iconSize, WHITE);
     }
 
     display.display();

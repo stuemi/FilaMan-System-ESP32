@@ -50,8 +50,6 @@ uint16_t oledSleepTimeout = 60; // Default 60 seconds (0 = disabled)
 uint8_t rfidTaskCore = 1;
 uint8_t rfidTaskPrio = 1;
 
-uint8_t rfidWriteTaskPrio = 1;
-
 uint8_t scaleTaskCore = 0;
 uint8_t scaleTaskPrio = 1;
 // ***** Task Prios

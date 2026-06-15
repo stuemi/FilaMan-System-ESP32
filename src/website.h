@@ -12,7 +12,6 @@
 #include "scale.h"
 #include "esp_task_wdt.h"
 
-extern String spoolmanUrl;
 extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 
@@ -22,9 +21,7 @@ void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_
 void setupWebserver(AsyncWebServer &server);
 
 // WebSocket-Funktionen
-void sendAmsData(AsyncWebSocketClient *client);
 void sendNfcData();
 void foundNfcTag(AsyncWebSocketClient *client, uint8_t success);
-void sendWriteResult(AsyncWebSocketClient *client, uint8_t success);
 
 #endif

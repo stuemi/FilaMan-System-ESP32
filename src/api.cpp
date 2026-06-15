@@ -1,7 +1,6 @@
 #include "api.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include "commonFS.h"
 #include <Preferences.h>
 #include "debug.h"
 #include "scale.h"
@@ -114,11 +113,11 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
             // Bambuddy API JSON parsen (flexibel für Objekt oder Array)
             if (doc.is<JsonArray>() && doc.size() > 0) {
                 foundSpoolId = doc[0]["id"] | doc[0]["spool_id"] | -1;
-            } else if (doc.containsKey("data") && doc["data"].is<JsonArray>() && doc["data"].size() > 0) {
+            } else if (doc["data"].is<JsonArray>() && doc["data"].size() > 0) {
                 foundSpoolId = doc["data"][0]["id"] | doc["data"][0]["spool_id"] | -1;
-            } else if (doc.containsKey("id")) {
+            } else if (doc["id"].is<int>()) {
                 foundSpoolId = doc["id"] | -1;
-            } else if (doc.containsKey("spool_id")) {
+            } else if (doc["spool_id"].is<int>()) {
                 foundSpoolId = doc["spool_id"] | -1;
             }
         }
@@ -225,7 +224,7 @@ void filamanApiTask(void* pvParameters) {
 void sendHeartbeatAsync() {
     if (!checkFilamanRegistration()) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        // Prevent duplicate heartbeats
+        // Doppelte Heartbeats verhindern
         for(int i=0; i<MAX_API_QUEUE; i++) if(apiQueue[i].active && apiQueue[i].type == API_REQUEST_HEARTBEAT) {
             xSemaphoreGive(queueMutex);
             return;
@@ -275,8 +274,8 @@ bool initFilaman() {
     oledShowProgressBar(3, NUM_SETUP_STEPS, DISPLAY_BOOT_TEXT, tr(STR_API_INIT));
     loadFilamanConfig();
     queueMutex = xSemaphoreCreateMutex();
-    // Move to Core 1 (Hardware Core) to free up Core 0 for WiFi/Webserver
-    // Set priority to 1 (same as Scale/NFC) to ensure fair scheduling
+    // Auf Core 1 (Hardware Core) verschieben, um Core 0 für WiFi/Webserver freizuhalten
+    // Priorität auf 1 setzen (wie Waage/NFC), um faires Scheduling zu gewährleisten
     xTaskCreatePinnedToCore(filamanApiTask, "FilaManApi", 6144, NULL, 1, NULL, 1);
     if (checkFilamanRegistration()) sendHeartbeatAsync();
     return true;

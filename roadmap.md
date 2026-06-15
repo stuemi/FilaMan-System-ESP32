@@ -35,6 +35,7 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 - [x] Code für `main.cpp` anpassen (Weiche nutzen, Schreib-Logik entfernen).
 - [x] Komplett ungenutzte "Tag schreiben" Logik aus `nfc.cpp` und `website.cpp` entfernen.
 - [ ] Auf den ESP32 flashen und testen.
+- [x] Web-Oberfläche, Sprachdateien und tote C++ Architektur-Reste (Icons, JSON-FS) bereinigen und auf Bambuddy branden.
 
 ## Geplante Datei-Änderungen (Architektur-Umbau)
 

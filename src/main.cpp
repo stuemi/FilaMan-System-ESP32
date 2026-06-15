@@ -74,20 +74,15 @@ void setup() {
 
   // Aktuellen Task (loopTask) zum Watchdog hinzufügen
   esp_task_wdt_add(NULL);
-
-  if ( !scaleConnected ) {
-    // Clear Display after Boot
-    oledDisplayText(tr(STR_NOSCALE_PROMPT));
-  }
 }
 
 
 /**
- * Safe interval check that handles millis() overflow
- * @param currentTime Current millis() value
- * @param lastTime Last recorded time
- * @param interval Desired interval in milliseconds
- * @return True if interval has elapsed
+ * Sicherer Intervall-Check, der millis() Überlauf behandelt
+ * @param currentTime Aktueller millis() Wert
+ * @param lastTime Zuletzt erfasste Zeit
+ * @param interval Gewünschtes Intervall in Millisekunden
+ * @return True, wenn das Intervall verstrichen ist
  */
 bool intervalElapsed(unsigned long currentTime, unsigned long &lastTime, unsigned long interval) {
   if (currentTime - lastTime >= interval || currentTime < lastTime) {
@@ -107,18 +102,18 @@ unsigned long lastTopRowUpdateTime = 0;
 uint8_t weightSend = 0;
 int16_t lastWeight = 0;
 
-// Button debounce variables
+// Variablen zur Tasten-Entprellung
 unsigned long lastButtonPress = 0;
-const unsigned long debounceDelay = 500; // 500 ms debounce delay
+const unsigned long debounceDelay = 500; // 500 ms Entprellungs-Verzögerung
 
 unsigned long lastConnErrorShowTime = 0;
-const unsigned long connErrorShowInterval = 10000; // Show connection error every 10 seconds if exists
+const unsigned long connErrorShowInterval = 10000; // Verbindungsfehler alle 10 Sekunden anzeigen
 
 // ##### PROGRAM START #####
 void loop() {
   unsigned long currentMillis = millis();
 
-  // Handle connection errors (not registered or not connected)
+  // Verbindungsfehler behandeln (nicht registriert oder nicht verbunden)
   if (intervalElapsed(currentMillis, lastConnErrorShowTime, connErrorShowInterval)) {
       if (!filamanRegistered && oledCanUpdate(DISPLAY_PRIORITY_WARNING)) {
           oledShowConnectionError(tr(STR_NOT_REGISTERED), WiFi.localIP().toString());
@@ -128,9 +123,6 @@ void loop() {
           oledShowConnectionError(tr(STR_API_CONN_LOST), WiFi.localIP().toString());
           oledSetPriority(DISPLAY_PRIORITY_WARNING, 3000);
           mainTaskWasPaused = true;
-      } else if ( !scaleConnected ){
-          // everything fine again: without scale manual clearing of the error msg is needed
-          oledDisplayText(tr(STR_NOSCALE_PROMPT));
       }
   }
 
@@ -148,7 +140,7 @@ void loop() {
     checkWiFiConnection();
   }
 
-  // Periodic display update
+  // Regelmäßiges Display-Update
   if (intervalElapsed(currentMillis, lastTopRowUpdateTime, DISPLAY_UPDATE_INTERVAL))
   {
     oledShowTopRow();
@@ -163,16 +155,16 @@ void loop() {
     lastWsCleanup = currentMillis;
   }
 
-  // Periodic FilaMan heartbeat
+  // Regelmäßiger Heartbeat
   if (intervalElapsed(currentMillis, lastFilamanHeartbeatTime, FILAMAN_HEARTBEAT_INTERVAL))
   {
     sendHeartbeatAsync();
   }
 
-  // If scale is not calibrated, only show a warning
+  // Wenn die Waage nicht kalibriert ist, nur eine Warnung anzeigen
   if (scaleConnected && !scaleCalibrated)
   {
-    // Do not show the warning if the calibratin process is onging
+    // Warnung nicht anzeigen, wenn der Kalibrierungsprozess läuft
     if(!scaleCalibrationActive){
       oledDisplayText(tr(STR_SCALE_NOT_CALIBRATED));
       vTaskDelay(pdMS_TO_TICKS(1000));
@@ -182,10 +174,9 @@ void loop() {
   if (scaleConnected && scaleCalibrated)
   {
     // Ausgabe der Waage auf Display
-    // Block weight display during higher-priority display messages
+    // Gewichtsanzeige blockieren, wenn wichtigere Display-Meldungen aktiv sind
     if(pauseMainTask == 0 && oledCanUpdate(DISPLAY_PRIORITY_STATUS))
     {
-      // Use filtered weight for smooth display, but still check API weight for significant changes
       int16_t displayWeight = getFilteredDisplayWeight();
       if (mainTaskWasPaused || (weight != lastWeight && (nfcReaderState == NFC_IDLE || tagProcessed)))
       {
@@ -200,8 +191,8 @@ void loop() {
     }
 
 
-    // Wenn Timer abgelaufen und nicht gerade ein RFID-Tag geschrieben wird
-    if (currentMillis - lastWeightReadTime >= weightReadInterval && nfcReaderState < NFC_WRITING)
+    // Wenn Timer abgelaufen ist
+    if (currentMillis - lastWeightReadTime >= weightReadInterval)
     {
       lastWeightReadTime = currentMillis;
 
@@ -209,7 +200,7 @@ void loop() {
       if (abs(weight - lastWeight) <= 2 && weight > 5)
       {
         weightCounterToApi++;
-        // Show stable weight feedback when approaching send threshold
+                // Feedback für stabiles Gewicht anzeigen, wenn der Sende-Schwellenwert erreicht wird
         if (weightCounterToApi == 3 && nfcReaderState == NFC_READ_SUCCESS && !tagProcessed && weightSend == 0) {
           oledShowProgressBar(2, 4, tr(STR_SPOOL_TAG), tr(STR_WEIGHT_STABLE));
           oledSetPriority(DISPLAY_PRIORITY_INFO, 1000);
@@ -217,7 +208,7 @@ void loop() {
       }
       else
       {
-        // Show visual feedback when tag is present and weight is unstable
+                // Visuelles Feedback anzeigen, wenn ein Tag erkannt wurde und das Gewicht instabil ist
         if (weightCounterToApi > 0 && nfcReaderState == NFC_READ_SUCCESS && !tagProcessed && weightSend == 0) {
           oledShowProgressBar(1, 4, tr(STR_SPOOL_TAG), tr(STR_WEIGHING));
           oledSetPriority(DISPLAY_PRIORITY_INFO, 1000);
@@ -239,7 +230,7 @@ void loop() {
 
       weightSend = 1;
 
-      // Feedback to user
+      // Feedback an den Benutzer
       oledShowProgressBar(3, 4, tr(STR_SPOOL_TAG), tr(STR_SENDING));
       oledSetPriority(DISPLAY_PRIORITY_ACTION, 2000);
     }

@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <website.h>
-#include <commonFS.h>
 #include "scale.h"
 #include "nfc.h"
 #include "lang.h"
@@ -45,14 +44,6 @@ bool isVersionLessThan(const String& version1, const String& version2) {
     
     // Minor versions equal, compare patch
     return patch1 < patch2;
-}
-
-void backupJsonConfigs() {
-    // No more JSON configs to backup, using NVS
-}
-
-void restoreJsonConfigs() {
-    // No more JSON configs to restore, using NVS
 }
 
 void espRestart() {
@@ -134,11 +125,6 @@ void handleUpdate(AsyncWebServer &server) {
             isSpiffsUpdate = (filename.indexOf("website") > -1);
             
             if (isSpiffsUpdate) {
-                // Backup vor dem Update
-                sendUpdateProgress(0, "backup", "Backing up configurations...");
-                vTaskDelay(pdMS_TO_TICKS(200));
-                backupJsonConfigs();
-                vTaskDelay(pdMS_TO_TICKS(200));
                 
                 const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, NULL);
                 if (!partition || !Update.begin(partition->size, U_SPIFFS)) {
@@ -194,9 +180,6 @@ void handleUpdate(AsyncWebServer &server) {
 
         if (final) {
             if (Update.end(true)) {
-                if (isSpiffsUpdate) {
-                    restoreJsonConfigs();
-                }
             } else {
                 request->send(400, "application/json", "{\"success\":false,\"message\":\"Update finalization failed\"}");
             }

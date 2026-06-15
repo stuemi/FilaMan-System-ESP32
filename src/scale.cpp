@@ -391,11 +391,9 @@ void start_scale(bool touchSensorConnected) {
     }
   }
   else {
-    // No HX711 - switching to NFC-only mode
+    // No HX711 found - scale mode is required for Bambuddy
     Serial.println("Kann kein HX711 Board finden !");            // Sende Text "Kann kein..." an seriellen Monitor
     oledDisplayText(tr(STR_HX711_NOT_FOUND));
-    vTaskDelay(pdMS_TO_TICKS(1500));
-    oledDisplayText(tr(STR_NOSCALE_MODE));
     vTaskDelay(pdMS_TO_TICKS(1500));
   }
 }

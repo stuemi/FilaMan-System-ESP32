@@ -46,6 +46,5 @@ void oledShowRemainingWeight(uint16_t remainingWeight);
 void oledDisplayText(const String &message, uint8_t size = 2);
 void oledShowConnectionError(const char* error, const String& ip);
 void oledShowTopRow();
-void oledShowIcon(const char* icon);
 
 #endif

@@ -17,16 +17,11 @@ TaskHandle_t RfidReaderTask;
 // AsyncWebServerRequest* volatile activeNfcWriteRequest = nullptr; // Removed
 SemaphoreHandle_t nfcRequestMutex = NULL;
 
-JsonDocument rfidData;
-String activeSpoolId = "";
 String activeTagUuid = "";
-String lastSpoolId = "";
 String nfcJsonData = "";
 bool tagProcessed = false;
-bool isBambuTag = false;
 volatile bool nfcReadingTaskSuspendRequest = false;
 volatile bool nfcReadingTaskSuspendState = false;
-volatile bool nfcWriteInProgress = false; // Prevent any tag operations during write
 
 volatile nfcReaderStateType nfcReaderState = NFC_IDLE;
 // 0 = nicht gelesen
@@ -38,17 +33,17 @@ volatile nfcReaderStateType nfcReaderState = NFC_IDLE;
 // 6 = reading
 // ***** PN532
 
-// Safe tag detection with manual retry logic and short timeouts
+// Sichere Tag-Erkennung mit manuellem Retry und kurzen Timeouts
 bool safeTagDetection(uint8_t* uid, uint8_t* uidLength) {
     const int MAX_ATTEMPTS = 3;
-    const int SHORT_TIMEOUT = 100; // Very short timeout to prevent hanging
+    const int SHORT_TIMEOUT = 100; // Sehr kurzer Timeout, um Aufhängen zu vermeiden
 
     for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        // Watchdog reset on each attempt
+        // Watchdog bei jedem Versuch zurücksetzen
         esp_task_wdt_reset();
         yield();
 
-        // Use short timeout to avoid blocking
+        // Kurzen Timeout verwenden, um Blockieren zu vermeiden
         bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, uidLength, SHORT_TIMEOUT);
 
         if (success) {
@@ -56,10 +51,10 @@ bool safeTagDetection(uint8_t* uid, uint8_t* uidLength) {
             return true;
         }
 
-        // Short pause between attempts
+        // Kurze Pause zwischen den Versuchen
         vTaskDelay(pdMS_TO_TICKS(25));
 
-        // Refresh RF field after failed attempt (but not on last attempt)
+        // RF-Feld nach fehlgeschlagenem Versuch aktualisieren (außer beim letzten Versuch)
         if (attempt < MAX_ATTEMPTS - 1) {
             nfc.SAMConfig();
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -72,35 +67,34 @@ bool safeTagDetection(uint8_t* uid, uint8_t* uidLength) {
 void scanRfidTask(void * parameter) {
   Serial.println("RFID Task gestartet");
   for(;;) {
-    // Regular watchdog reset
+    // Regelmäßiger Watchdog-Reset
     esp_task_wdt_reset();
     yield();
 
-    // Skip scanning during write operations, but keep NFC interface active
-    if (nfcReaderState != NFC_WRITING && !nfcWriteInProgress && !nfcReadingTaskSuspendRequest && !booting)
+    if (!nfcReadingTaskSuspendRequest && !booting)
     {
       nfcReadingTaskSuspendState = false;
       yield();
 
       uint8_t success;
-      uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+      uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Puffer zum Speichern der UID
       uint8_t uidLength;
 
-      // Use safe tag detection instead of blocking readPassiveTargetID
+      // Sichere Tag-Erkennung anstelle des blockierenden readPassiveTargetID nutzen
       success = safeTagDetection(uid, &uidLength);
 
       foundNfcTag(nullptr, success);
 
-      // As long as there is still a tag on the reader, do not try to read it again
+      // Solange noch ein Tag auf dem Leser liegt, nicht erneut versuchen ihn zu lesen
       if (success && nfcReaderState == NFC_IDLE)
       {
-        // Set the current tag as not processed
+        // Aktuellen Tag als noch nicht verarbeitet markieren
         tagProcessed = false;
 
-        // Wake display when a tag is detected
+        // Display aufwecken, wenn ein Tag erkannt wird
         oledResetActivityTimer();
 
-        // Display some basic information about the card
+        // Basisinformationen der Karte im Serial Monitor ausgeben
         Serial.println("Found an ISO14443A card");
 
         nfcReaderState = NFC_READING;
@@ -109,8 +103,8 @@ void scanRfidTask(void * parameter) {
         oledShowProgressBar(0, 4, tr(STR_READING), tr(STR_DETECTING_TAG));
         oledSetPriority(DISPLAY_PRIORITY_ACTION, 1500);
 
-        // Stabilization time for reliable tag communication
-        Serial.println("Tag detected, stabilizing...");
+        // Stabilisierungszeit für zuverlässige Tag-Kommunikation
+        Serial.println("Tag erkannt, stabilisiere...");
         vTaskDelay(pdMS_TO_TICKS(500)); // Increased from 200ms for reliable reads
 
         // Bambuddy: Wir lesen NUR noch die Hardware UID aus!
@@ -136,7 +130,6 @@ void scanRfidTask(void * parameter) {
         Serial.printf("NFC: Tag removed (Previous state: %d)\n", nfcReaderState);
         nfcReaderState = NFC_IDLE;
         nfcJsonData = "";
-        activeSpoolId = "";
         activeTagUuid = "";
         tagProcessed = false;
         pauseMainTask = 0;
@@ -144,22 +137,21 @@ void scanRfidTask(void * parameter) {
         oledShowWeight(weight);
       }
 
-      // Reset state after successful read when tag is removed
+      // Status nach erfolgreichem Lesen zurücksetzen, wenn der Tag entfernt wurde
       else if (!success && nfcReaderState == NFC_READ_SUCCESS)
       {
         nfcReaderState = NFC_IDLE;
         tagProcessed = false;
-        isBambuTag = false;
         Serial.println("Tag nach erfolgreichem Lesen entfernt - bereit für nächsten Tag");
       }
 
-      // Add a pause after successful reading to prevent immediate re-reading
+      // Pause nach erfolgreichem Lesen hinzufügen, um sofortiges erneutes Scannen zu verhindern
       if (nfcReaderState == NFC_READ_SUCCESS) {
-        // After tag is processed, slow down scanning to give API time
+        // Nach der Tag-Verarbeitung das Scannen verlangsamen, um der API Zeit zu geben
         Serial.println("Tag processed - slowing scan to 2 seconds");
         vTaskDelay(pdMS_TO_TICKS(2000));
       } else {
-        // Faster scanning when no tag or idle state
+        // Schnelleres Scannen, wenn kein Tag anliegt
         vTaskDelay(pdMS_TO_TICKS(500));
       }
 
@@ -170,16 +162,9 @@ void scanRfidTask(void * parameter) {
     {
       nfcReadingTaskSuspendState = true;
 
-      // Different behavior for write protection vs. full suspension
-      if (nfcWriteInProgress) {
-        // During write: Just pause scanning, don't disable NFC interface
-        // Serial.println("NFC Scanning paused during write operation");
-        vTaskDelay(pdMS_TO_TICKS(100)); // Shorter delay during write
-      } else {
-        // Full suspension requested
-        Serial.println("NFC Reading disabled");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-      }
+      // Full suspension requested
+      Serial.println("NFC Reading disabled");
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
     yield();
   }
