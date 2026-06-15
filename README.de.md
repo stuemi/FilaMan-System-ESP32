@@ -25,10 +25,6 @@ Discord Server: [https://discord.gg/my7Gvaxj2v](https://discord.gg/my7Gvaxj2v)
   - Synchronisierung der Spulendaten mit dem Bambuddy-Server.
   - Automatische Aktualisierung der Spulengewichte.
 
-### Wenn Sie meine Arbeit unterstützen möchten, freue ich mich über einen Kaffee
-
-<a href="https://www.buymeacoffee.com/manuelw" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" ></a>
-
 ## Detaillierte Funktionalität
 
 ### ESP32-Funktionalität
@@ -97,7 +93,7 @@ A+ grün*
 ## Voraussetzungen
 - **Software:**
   - [PlatformIO](https://platformio.org/) in VS Code
-  - [FilaMan-System](https://github.com/Fire-Devils/filaman-system) Instanz
+  - Lokale Bambuddy Instanz
 - **Hardware:**
   - ESP32 Development Board
   - HX711 Wägezellenverstärker
@@ -108,36 +104,25 @@ A+ grün*
 
 
 ### Schritt-für-Schritt-Installation
-### Einfache Installation
-1. **Gehen Sie zum [FilaMan Installer](https://www.filaman.app/installer.html)**
-
-2. **Schließen Sie Ihr Gerät an und drücken Sie die Connect-Taste.**
-
-3. **Wählen Sie Ihren Geräte-Port aus und drücken Sie Install.**
-
-4. **Ersteinrichtung:**
-    - Verbinden Sie sich mit dem "FilaMan" WiFi-Access-Point.
-    - Konfigurieren Sie die WiFi-Einstellungen über das Captive Portal.
-    - Greifen Sie über `http://filaman.local` oder die IP-Adresse auf die Weboberfläche zu.
-
-### Selbst kompilieren
+### Kompilieren und Flashen
 1. **Repository klonen:**
     ```bash
-    git clone https://github.com/ManuelW77/Filaman-System-esp32.git
+    git clone https://github.com/<DEIN_GITHUB_NAME>/Filaman-System-esp32.git
     cd Filaman-System-esp32
     ```
 2. **Abhängigkeiten installieren:**
     ```bash
     pio lib install
     ```
-3. **ESP32 flashen:**
+3. **ESP32 Firmware und Dateisystem flashen:**
     ```bash
     pio run --target upload
+    pio run --target uploadfs
     ```
 4. **Ersteinrichtung:**
-    - Verbinden Sie sich mit dem "FilaMan" WiFi-Access-Point.
+    - Verbinden Sie sich mit dem "BambuddyScale" WiFi-Access-Point.
     - Konfigurieren Sie die WiFi-Einstellungen über das Captive Portal.
-    - Greifen Sie über `http://filaman.local` oder die IP-Adresse auf die Weboberfläche zu.
+    - Greifen Sie über `http://BambuddyScale.local` oder die IP-Adresse auf die Weboberfläche zu.
 
 ## Dokumentation
 

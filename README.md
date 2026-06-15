@@ -1,12 +1,9 @@
-# FilaMan - Filament Management System
+# Bambuddy Scale Firmware (Based on FilaMan)
 
-⚠️ **Important: Starting with v3.0.0, this system requires the [FilaMan-System](https://github.com/Fire-Devils/filaman-system) backend. Previous direct integrations (Spoolman, MQTT, Bambu Lab) have been moved to the central FilaMan-System.**
+⚠️ **Important: This fork of the FilaMan project has been exclusively modified to communicate directly with a local [Bambuddy](https://github.com/bambuddy) instance.**
 
-FilaMan is a filament management tool for 3D printing. It uses ESP32 hardware for weight measurement and NFC tag management.
-Users can manage filament spools and configure the device via a web interface.
-The system integrates seamlessly with the [FilaMan-System](https://github.com/Fire-Devils/filaman-system).
-
-**NEW since 3.3.1:** A reduced version w/o scale is also available. Details can be found in [NFC-only mode](docs/NFC-only_mode_en.md).
+This firmware uses ESP32 hardware for weight measurement and NFC tag identification.
+When a spool is scanned, the device automatically sends the weight to the Bambuddy API or creates unknown spools as "Auto-gen" in the database.
 
 ![Scale](./img/scale_trans.png)
 
@@ -16,73 +13,22 @@ or my website: [FilaMan Website](https://www.filaman.app)
 german explanatory video: [Youtube](https://youtu.be/uNDe2wh9SS8?si=b-jYx4I1w62zaOHU)
 Discord Server: [https://discord.gg/my7Gvaxj2v](https://discord.gg/my7Gvaxj2v)
 
-## NEW: Recycling Fabrik
-
-<a href="https://www.recyclingfabrik.com" target="_blank">
-    <img src="img/rf-logo.png" alt="Recycling Fabrik" width="200">
-</a>
-
-FilaMan is supported by [Recycling Fabrik](https://www.recyclingfabrik.com).
-Recycling Fabrik will soon offer a FilaMan-compatible NFC tag on their spools. This has the advantage
-that the spools can be automatically recognized and imported into the FilaMan-System directly via the FilaMan scale.
-
-**What is Recycling Fabrik?**
-
-Recycling Fabrik is a German company dedicated to developing and manufacturing sustainable 3D printing filament.
-Their filaments are made from 100% recycled material from both end customers and industry – for an environmentally conscious and resource-saving future.
-
-More information and products can be found here: [www.recyclingfabrik.com](https://www.recyclingfabrik.com)
-
----
-
-### Now more detailed informations about the usage: [Wiki](https://github.com/ManuelW77/Filaman/wiki)
-
 ### ESP32 Hardware Features
 - **Weight Measurement:** Using a load cell with HX711 amplifier for precise weight tracking.
-- **NFC Tag Reading/Writing:** PN532 module for reading and writing filament data to NFC tags.
-- **OLED Display:** Shows current weight and connection status (WiFi, FilaMan-System).
+- **NFC Tag Reading:** PN532 module for reading the hardware UID of NFC tags. (No writing required!)
+- **OLED Display:** Shows current weight and connection status.
 - **WiFi Connectivity:** WiFiManager for easy network configuration.
-- **NFC-Tag NTAG213 NTAG215:** Use NTAG213, better NTAG215 because of enough space on the Tag
+- **Any NFC Tags:** Any NFC tag or sticker can be used, as only the hardware UID serves as a reference for Bambuddy.
 
 ### Web Interface Features
 - **Real-time Updates:** WebSocket connection for live data updates.
-- **NFC Tag Management:**
-	- Write filament data to NFC tags.
-	- Supports automatic Spool detection in compatible systems.
-- **FilaMan-System Integration:**
-  - Synchronize spool data with the central backend.
+- **Bambuddy Integration:**
+  - Synchronize spool data with the Bambuddy server.
   - Update spool weights automatically.
-  - Track NFC tag assignments.
 
 ### If you want to support my work, i would be happy to get a coffe
 
 <a href="https://www.buymeacoffee.com/manuelw" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" ></a>
-
-## Manufacturer Tags Support
-
-🎉 **Exciting News!** FilaMan now supports **Manufacturer Tags** - NFC tags that come pre-programmed directly from filament manufacturers!
-
-### First Manufacturer Partner: RecyclingFabrik
-
-We're thrilled to announce that [**RecyclingFabrik**](https://www.recyclingfabrik.de) will be the **first filament manufacturer** to support FilaMan by offering NFC tags in the FilaMan format on their spools!
-
-**Coming Soon:** RecyclingFabrik spools will include NFC tags that automatically integrate with your FilaMan system, eliminating manual setup and ensuring perfect compatibility.
-
-### How Manufacturer Tags Work
-
-When you scan a manufacturer NFC tag for the first time:
-1. **Automatic Brand Detection:** FilaMan recognizes the manufacturer and creates the brand in the FilaMan-System.
-2. **Filament Type Creation:** All material specifications are automatically added.
-3. **Spool Registration:** Your specific spool is registered with proper weight and specifications.
-4. **Future Fast Recognition:** Subsequent scans use fast-path detection for instant weight measurement.
-
-**For detailed technical information:** [Manufacturer Tags Documentation](README_ManufacturerTags_EN.md)
-
-### Benefits for Users
-- ✅ **Zero Manual Setup** - Just scan and weigh
-- ✅ **Perfect Data Accuracy** - Manufacturer-verified specifications
-- ✅ **Instant Integration** - Seamless FilaMan-System compatibility
-- ✅ **Future-Proof** - Tags work with any FilaMan-compatible system
 
 ## Detailed Functionality
 
@@ -152,7 +98,7 @@ A+ green*
 ## Prerequisites
 - **Software:**
   - [PlatformIO](https://platformio.org/) in VS Code
-  - [FilaMan-System](https://github.com/Fire-Devils/filaman-system) instance
+  - Local Bambuddy instance
 - **Hardware:**
   - ESP32 Development Board
   - HX711 Load Cell Amplifier
@@ -163,36 +109,25 @@ A+ green*
 
 
 ### Step-by-Step Installation
-### Easy Installation
-1. **Go to [FilaMan Installer](https://www.filaman.app/installer.html)**
-
-2. **Plug you device in and push Connect button**
-
-3. **Select your Device Port and push Intall**
-
-4. **Initial Setup:**
-    - Connect to the "FilaMan" WiFi access point.
-    - Configure WiFi settings through the captive portal.
-    - Access the web interface at `http://filaman.local` or the IP address.
-
-### Compile by yourself
+### Compile and Flash
 1. **Clone the Repository:**
     ```bash
-    git clone https://github.com/ManuelW77/Filaman-System-esp32.git
+    git clone https://github.com/<YOUR_GITHUB_NAME>/Filaman-System-esp32.git
     cd Filaman-System-esp32
     ```
 2. **Install Dependencies:**
     ```bash
     pio lib install
     ```
-3. **Flash the ESP32:**
+3. **Flash the ESP32 firmware and filesystem:**
     ```bash
     pio run --target upload
+    pio run --target uploadfs
     ```
 4. **Initial Setup:**
-    - Connect to the "FilaMan" WiFi access point.
+    - Connect to the "BambuddyScale" WiFi access point.
     - Configure WiFi settings through the captive portal.
-    - Access the web interface at `http://filaman.local` or the IP address.
+    - Access the web interface at `http://BambuddyScale.local` or the IP address.
 
 ## Documentation
 

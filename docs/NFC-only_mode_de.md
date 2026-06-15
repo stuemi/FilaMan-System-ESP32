@@ -1,25 +1,17 @@
 # NFC-only Modus
 
 ## Beschreibung
-Es kann praktisch sein, ein kleines Gerät in der Nähe deines Desktop-Computers zu haben, wenn du neue Spulen in deine Datenbank hinzufügst.
-So kannst du sofort NFC-Tags für sie schreiben. Da keine Waage erforderlich ist (das Gewicht einer neuen Spule ist in der Regel bekannt), ist es sinnvoll, auf diese Funktion zu verzichten, um einen kleineren Formfaktor zu erreichen.
+Es kann praktisch sein, ein kleines Gerät in der Nähe deines Desktop-Computers zu haben, wenn du neue Spulen in deine Bambuddy-Datenbank hinzufügst.
+Da keine Waage erforderlich ist (das Gewicht einer neuen Spule ist in der Regel bekannt), kannst du auf die Waagen-Komponenten verzichten, um einen kleineren Formfaktor zu erreichen. Du scannst einfach den Tag, und Bambuddy legt die Spule automatisch an.
 
 ![FilaLite_no_scale](../img/FilaLite_no_scale.png)
 
 ## Bedienung
 
-Bevor du das NFC-only Terminal verwenden kannst, musst du es in der `FilaMan System App` registrieren, wie bei jeder anderen Waage auch.
+Bevor du das NFC-only Terminal verwenden kannst, musst du in der Web-Oberfläche die Bambuddy URL und deinen API-Key hinterlegen.
 
-### Tag schreiben
-Hauptzweck ist das Schreiben neuer NFC-Tags.
-
-Du startest den Schreibvorgang in der `FilaMan System App` (Web-GUI). Dann wählst du dein NFC-Gerät aus und folgst den Anweisungen auf dem Display.
-
-### Tag lesen
-Das Gerät kann Tags zwar lesen, sinnvolle Anwendungsfälle sind jedoch ohne Waage eingeschränkt.
-Du kannst trotzdem eine Spule identifizieren und ihr einen Standort mit dem entsprechenden Standort-Tag zuweisen.
-
-Aber ehrlich gesagt: der Hauptzweck des NFC-only Gerätes ist **TAG SCHREIBEN**.
+### Tag lesen (Auto-gen)
+Das Gerät liest ausschließlich die UID des Tags. Wenn du eine neue Spule scannst, wird diese vollautomatisch über die Bambuddy-API in deinem System angelegt. Das Schreiben von Tags ist in dieser angepassten Bambuddy-Firmware nicht mehr notwendig!
 
 ## NFC-only Modus
 

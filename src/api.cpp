@@ -70,6 +70,13 @@ bool sendHeartbeat() {
 
 // Heartbeat mit Retry-Logik für mehr Stabilität
 bool sendHeartbeatWithRetry(int maxRetries = 2) {
+    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
+        filamanConnected = false;
+        return false;
+    }
+    // Dummy-Heartbeat hält das UI "online", solange WLAN da ist und die Waage konfiguriert wurde.
+    // Echte API-Fehler werden unten beim Wiegen (syncBambuddySpool) abgefangen.
+    filamanConnected = true;
     return true;
 }
 
@@ -78,6 +85,7 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
     Serial.printf("syncBambuddy: starte API-Abfrage - tagUuid=%s, weight=%.1f\n", tagUuid.c_str(), measuredWeight);
     if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
         Serial.println("ERROR: Keine URL konfiguriert oder WiFi nicht verbunden");
+        filamanConnected = false;
         return false;
     }
 
@@ -143,6 +151,7 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
             oledSetPriority(DISPLAY_PRIORITY_ACTION, 3000);
             vTaskDelay(pdMS_TO_TICKS(3000));
             oledClearPriority();
+            filamanConnected = true;
             return true;
         }
     } else {
@@ -169,11 +178,13 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
             oledSetPriority(DISPLAY_PRIORITY_ACTION, 3000);
             vTaskDelay(pdMS_TO_TICKS(3000));
             oledClearPriority();
+            filamanConnected = true;
             return true;
         }
     }
 
     // Fehlerfall
+    filamanConnected = false;
     oledShowProgressBar(1, 1, tr(STR_FAILURE), tr(STR_API_ERROR));
     oledSetPriority(DISPLAY_PRIORITY_WARNING, 2000);
     vTaskDelay(pdMS_TO_TICKS(2000));
