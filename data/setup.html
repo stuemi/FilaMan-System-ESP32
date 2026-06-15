@@ -40,21 +40,16 @@
             </header>
 
             <div class="fm-card">
-                <h2>System Registration</h2>
+                <h2>Server Configuration</h2>
                 <p>Current Status: <strong style="color: var(--accent);">%registered%</strong></p>
                 
                 <div class="fm-form-group" style="margin-top: 2rem;">
-                    <label class="fm-label" for="filamanUrl">FilaMan API URL</label>
+                    <label class="fm-label" for="filamanUrl">Bambuddy Server URL</label>
                     <input type="text" id="filamanUrl" class="fm-input" value="%filamanUrl%" placeholder="e.g. http://192.168.1.10:8000">
+                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter the base URL of your Bambuddy instance (without trailing slash).</p>
                 </div>
                 
-                <div class="fm-form-group">
-                    <label class="fm-label" for="deviceCode">Registration Code</label>
-                    <input type="text" id="deviceCode" class="fm-input" maxlength="6" placeholder="6-digit code">
-                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter the 6-digit code shown in your FilaMan Dashboard.</p>
-                </div>
-                
-                <button id="registerBtn" class="fm-btn fm-btn-primary">Register Device</button>
+                <button id="registerBtn" class="fm-btn fm-btn-primary">Save Configuration</button>
                 <div id="statusMessage" style="margin-top: 1.5rem;"></div>
             </div>
 
@@ -162,31 +157,30 @@
 
         document.getElementById('registerBtn').addEventListener('click', () => {
             const url = document.getElementById('filamanUrl').value;
-            const code = document.getElementById('deviceCode').value;
             const statusMessage = document.getElementById('statusMessage');
 
-            if (!url || !code) {
-                statusMessage.textContent = 'Please provide both URL and Code';
+            if (!url) {
+                statusMessage.textContent = 'Please provide the Bambuddy URL';
                 statusMessage.style.color = 'var(--error-text)';
                 return;
             }
 
-            statusMessage.textContent = 'Registering device...';
+            statusMessage.textContent = 'Saving configuration...';
             statusMessage.style.color = 'var(--text-muted)';
 
             fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url, code: code })
+                body: JSON.stringify({ url: url, code: "dummy" }) // Sende Dummy-Code, da der C++ Endpunkt dies strukturell noch erwartet
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    statusMessage.textContent = 'Registration successful!';
+                    statusMessage.textContent = 'Configuration saved successfully!';
                     statusMessage.style.color = 'var(--success-text)';
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    statusMessage.textContent = 'Registration failed. Please check your code and URL.';
+                    statusMessage.textContent = 'Saving failed. Please check your URL.';
                     statusMessage.style.color = 'var(--error-text)';
                 }
             })
