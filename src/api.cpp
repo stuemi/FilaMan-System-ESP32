@@ -11,6 +11,9 @@
 #include "display.h"
 #include "lang.h"
 
+// Bambuddy: Fest hinterlegter API-Schlüssel
+const String BAMBUDDY_API_KEY = "bb_Kvg_PtfDk0UAZnYx68z8B5PrMdJ4m2XxAD8DmbDRN8g";
+
 volatile filamanApiStateType filamanApiState = API_IDLE;
 bool filamanConnected = false;
 
@@ -50,162 +53,134 @@ void loadFilamanConfig() {
 }
 
 bool checkFilamanRegistration() {
-    return filamanRegistered && filamanToken.length() > 0;
+    // Bambuddy: Benötigt keinen Handshake-Token. URL im NVS reicht aus.
+    return filamanUrl.length() > 0;
 }
 
 bool registerDevice(const String& deviceCode) {
-    if (filamanUrl.length() == 0) return false;
-    HTTPClient http;
-    http.setTimeout(5000);
-    http.begin(filamanUrl + "/api/v1/devices/register");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("X-Device-Code", deviceCode);
-    int httpCode = http.POST("{}");
-    if (httpCode == 200 || httpCode == 201) {
-        JsonDocument doc;
-        if (!deserializeJson(doc, http.getString())) {
-            if (doc["token"].is<String>()) {
-                filamanToken = doc["token"].as<String>();
-                filamanRegistered = true;
-                saveFilamanConfig();
-                http.end();
-                return true;
-            }
-        }
-    }
-    http.end();
-    return false;
+    // Bambuddy: Dummy-Funktion für FilaMan-Kompatibilität
+    filamanRegistered = true;
+    saveFilamanConfig();
+    return true;
 }
 
 bool sendHeartbeat() {
-    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) return false;
-    HTTPClient http;
-    http.setTimeout(10000);  // 10s statt 3s - wichtig für instabile Verbindungen
-    http.setReuse(true);     // Keep-Alive aktivieren für bessere Performance
-    http.begin(filamanUrl + "/api/v1/devices/heartbeat");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Device " + filamanToken);
-    http.addHeader("Connection", "keep-alive");  // Explizit Keep-Alive anfordern
-    JsonDocument doc;
-    doc["ip_address"] = WiFi.localIP().toString();
-    String payload;
-    serializeJson(doc, payload);
-    int httpCode = http.POST(payload);
-    filamanConnected = (httpCode == 200);
-    http.end();
-    return filamanConnected;
+    // Bambuddy: Dummy-Funktion. Wir brauchen keinen ständigen Device-Status.
+    filamanConnected = true;
+    return true;
 }
 
 // Heartbeat mit Retry-Logik für mehr Stabilität
 bool sendHeartbeatWithRetry(int maxRetries = 2) {
-    for (int attempt = 0; attempt <= maxRetries; attempt++) {
-        if (sendHeartbeat()) {
-            return true;
-        }
-        if (attempt < maxRetries) {
-            Serial.printf("Heartbeat failed, retry %d/%d...\n", attempt + 1, maxRetries);
-            vTaskDelay(pdMS_TO_TICKS(1000));  // 1s warten vor Retry
-        }
-    }
-    Serial.println("Heartbeat failed after all retries");
-    return false;
+    return true;
 }
 
-bool sendWeight(int spoolId, String tagUuid, float measuredWeight) {
-    Serial.printf("sendWeight: sending to API - spoolId=%d, tagUuid=%s, weight=%.1f\n", spoolId, tagUuid.c_str(), measuredWeight);
+// Bambuddy: Zentrale Logik-Weiche für Workflow 1 & 2
+bool syncBambuddySpool(String tagUuid, float measuredWeight) {
+    Serial.printf("syncBambuddy: starte API-Abfrage - tagUuid=%s, weight=%.1f\n", tagUuid.c_str(), measuredWeight);
     if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
-        Serial.println("ERROR: Not registered or WiFi not connected");
+        Serial.println("ERROR: Keine URL konfiguriert oder WiFi nicht verbunden");
         return false;
     }
+
     HTTPClient http;
-    http.setTimeout(10000);  // 10s Timeout
-    http.setReuse(true);
-    http.begin(filamanUrl + "/api/v1/devices/scale/weight");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Device " + filamanToken);
-    http.addHeader("Connection", "keep-alive");
-    JsonDocument doc;
-    // Only add spool_id if it's > 0 (for NTAG tags with spool ID)
-    // For Bambu tags (spoolId == 0), only send tag_uuid
-    if (spoolId > 0) doc["spool_id"] = spoolId;
-    // Always add tag_uuid if available (this is what we want for Bambu tags)
-    if (tagUuid.length() > 0) doc["tag_uuid"] = tagUuid;
-    doc["measured_weight_g"] = measuredWeight;
-    String payload;
-    serializeJson(doc, payload);
-    Serial.printf("API payload: %s\n", payload.c_str());
-    int httpCode = http.POST(payload);
-    Serial.printf("API response code: %d\n", httpCode);
+    http.setTimeout(10000);
+    
+    // =========================================================
+    // 1. GET Request: Prüfen, ob Spule in Bambuddy existiert
+    // =========================================================
+    String getUrl = filamanUrl + "/api/v1/inventory/spools?tag_uid=" + tagUuid;
+    http.begin(getUrl);
+    
+    http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
+    http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+    
+    int httpCode = http.GET();
+    String response = http.getString();
+    http.end();
+
+    int foundSpoolId = -1;
 
     if (httpCode == 200) {
-        String response = http.getString();
-        JsonDocument responseDoc;
-        DeserializationError error = deserializeJson(responseDoc, response);
-        if (!error && responseDoc["remaining_weight_g"].is<float>()) {
-            int remaining = (int)responseDoc["remaining_weight_g"].as<float>();
-            oledShowRemainingWeight(remaining);
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, response);
+        if (!error) {
+            // Bambuddy API JSON parsen (flexibel für Objekt oder Array)
+            if (doc.is<JsonArray>() && doc.size() > 0) {
+                foundSpoolId = doc[0]["id"] | doc[0]["spool_id"] | -1;
+            } else if (doc.containsKey("data") && doc["data"].is<JsonArray>() && doc["data"].size() > 0) {
+                foundSpoolId = doc["data"][0]["id"] | doc["data"][0]["spool_id"] | -1;
+            } else if (doc.containsKey("id")) {
+                foundSpoolId = doc["id"] | -1;
+            } else if (doc.containsKey("spool_id")) {
+                foundSpoolId = doc["spool_id"] | -1;
+            }
+        }
+    }
+
+    http.setReuse(true);
+
+    // =========================================================
+    // 2. Weiche: Workflow 1 (Update) oder Workflow 2 (Neu anlegen)
+    // =========================================================
+    if (foundSpoolId > 0) {
+        // WORKFLOW 1: Bekannte Spule -> Gewicht updaten
+        Serial.printf("syncBambuddy: Spule gefunden (ID: %d). Sende Update...\n", foundSpoolId);
+        http.begin(filamanUrl + "/api/v1/spoolbuddy/scale/update-spool-weight");
+        http.addHeader("Content-Type", "application/json");
+        http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
+        http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+
+        JsonDocument postDoc;
+        postDoc["spool_id"] = foundSpoolId;
+        postDoc["weight"] = measuredWeight;
+        String payload;
+        serializeJson(postDoc, payload);
+
+        int postCode = http.POST(payload);
+        http.end();
+        
+        if (postCode == 200 || postCode == 201 || postCode == 204) {
+            oledShowRemainingWeight((int)measuredWeight);
             oledSetPriority(DISPLAY_PRIORITY_ACTION, 3000);
             vTaskDelay(pdMS_TO_TICKS(3000));
             oledClearPriority();
+            return true;
         }
+    } else {
+        // WORKFLOW 2: Unbekannte Spule -> Neu anlegen (Auto-gen)
+        Serial.println("syncBambuddy: Spule unbekannt. Erstelle neue Auto-gen Spule...");
+        http.begin(filamanUrl + "/api/v1/inventory/spools");
+        http.addHeader("Content-Type", "application/json");
+        http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
+        http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+
+        JsonDocument postDoc;
+        postDoc["tag_uid"] = tagUuid;
+        postDoc["material"] = "Auto-gen";
+        postDoc["weight"] = measuredWeight; 
+        
+        String payload;
+        serializeJson(postDoc, payload);
+
+        int postCode = http.POST(payload);
         http.end();
-        return true;
-    }
-    else {
-        oledShowProgressBar(1, 1, tr(STR_FAILURE), tr(STR_API_ERROR));
-        oledSetPriority(DISPLAY_PRIORITY_WARNING, 2000);
-        vTaskDelay(pdMS_TO_TICKS(2000));
-        oledClearPriority();
+        
+        if (postCode == 200 || postCode == 201) {
+            oledShowProgressBar(4, 4, tr(STR_SPOOL_TAG), "Neu angelegt!");
+            oledSetPriority(DISPLAY_PRIORITY_ACTION, 3000);
+            vTaskDelay(pdMS_TO_TICKS(3000));
+            oledClearPriority();
+            return true;
+        }
     }
 
-    http.end();
+    // Fehlerfall
+    oledShowProgressBar(1, 1, tr(STR_FAILURE), tr(STR_API_ERROR));
+    oledSetPriority(DISPLAY_PRIORITY_WARNING, 2000);
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    oledClearPriority();
     return false;
-}
-
-bool sendLocation(int spoolId, String spoolTagUuid, int locationId, String locationTagUuid) {
-    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) return false;
-    HTTPClient http;
-    http.setTimeout(10000);  // 10s Timeout
-    http.setReuse(true);
-    http.begin(filamanUrl + "/api/v1/devices/scale/locate");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Device " + filamanToken);
-    http.addHeader("Connection", "keep-alive");
-    JsonDocument doc;
-    if (spoolId > 0) doc["spool_id"] = spoolId;
-    if (spoolTagUuid.length() > 0) doc["spool_tag_uuid"] = spoolTagUuid;
-    if (locationId > 0) doc["location_id"] = locationId;
-    if (locationTagUuid.length() > 0) doc["location_tag_uuid"] = locationTagUuid;
-    String payload;
-    serializeJson(doc, payload);
-    int httpCode = http.POST(payload);
-    http.end();
-    return (httpCode == 200);
-}
-
-bool sendRfidResult(String tagUuid, int spoolId, int locationId, bool success, String errorMessage, float remainingWeight) {
-    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) return false;
-    HTTPClient http;
-    http.setTimeout(10000);  // 10s Timeout
-    http.setReuse(true);
-    http.begin(filamanUrl + "/api/v1/devices/rfid-result");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Device " + filamanToken);
-    http.addHeader("Connection", "keep-alive");
-
-    JsonDocument doc;
-    doc["success"] = success;
-    if (tagUuid.length() > 0) doc["tag_uuid"] = tagUuid;
-    if (spoolId > 0) doc["spool_id"] = spoolId;
-    if (locationId > 0) doc["location_id"] = locationId;
-    if (errorMessage.length() > 0) doc["error_message"] = errorMessage;
-    if (remainingWeight > 0) doc["remaining_weight_g"] = remainingWeight;
-
-    String payload;
-    serializeJson(doc, payload);
-    int httpCode = http.POST(payload);
-    http.end();
-    return (httpCode == 200);
 }
 
 void filamanApiTask(void* pvParameters) {
@@ -228,10 +203,8 @@ void filamanApiTask(void* pvParameters) {
         if (hasReq) {
             filamanApiState = API_TRANSMITTING;
             switch (req.type) {
-                case API_REQUEST_HEARTBEAT: sendHeartbeatWithRetry(2); break;  // Mit Retry-Logik
-                case API_REQUEST_WEIGHT: sendWeight(req.id1, req.str1, req.val); break;
-                case API_REQUEST_LOCATE: sendLocation(req.id1, req.str1, req.id2, req.str2); break;
-                case API_REQUEST_RFID_RESULT: sendRfidResult(req.str1, req.id1, req.id2, req.bool1, req.str3, req.remainingWeight); break;
+                case API_REQUEST_HEARTBEAT: sendHeartbeatWithRetry(2); break;
+                case API_REQUEST_SYNC_BAMBUDDY: syncBambuddySpool(req.str1, req.val); break;
                 default: break;
             }
             filamanApiState = API_IDLE;
@@ -262,61 +235,27 @@ void sendHeartbeatAsync() {
     }
 }
 
-void sendWeightAsync(int spoolId, String tagUuid, float weight) {
-    Serial.printf("sendWeightAsync: spoolId=%d, tagUuid=%s, weight=%.1f\n", spoolId, tagUuid.c_str(), weight);
+void syncBambuddySpoolAsync(String tagUuid, float weight) {
+    // Bambuddy: Asynchroner Aufruf zum Aktualisieren oder Anlegen einer Spule
+    Serial.printf("syncBambuddySpoolAsync: tagUuid=%s, weight=%.1f\n", tagUuid.c_str(), weight);
     if (!checkFilamanRegistration()) {
-        Serial.println("ERROR: Not registered with FilaMan, cannot send weight");
+        Serial.println("ERROR: URL nicht konfiguriert");
         return;
     }
     if (weight <= 0) {
-        Serial.println("ERROR: Weight is 0 or negative, cannot send");
+        Serial.println("ERROR: Gewicht ist 0 oder negativ");
         return;
     }
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         for(int i=0; i<MAX_API_QUEUE; i++) if(!apiQueue[i].active) {
-            apiQueue[i].type = API_REQUEST_WEIGHT;
-            apiQueue[i].id1 = spoolId;
+            apiQueue[i].type = API_REQUEST_SYNC_BAMBUDDY;
+            apiQueue[i].id1 = 0; // Nicht mehr benötigt
             apiQueue[i].id2 = 0;
             apiQueue[i].str1 = tagUuid;
             apiQueue[i].str2 = "";
             apiQueue[i].val = weight;
             apiQueue[i].active = true;
-            Serial.printf("Weight queued for API (slot %d)\n", i);
-            break;
-        }
-        xSemaphoreGive(queueMutex);
-    }
-}
-
-void sendLocationAsync(int spoolId, String spoolTagUuid, int locationId, String locationTagUuid) {
-    if (!checkFilamanRegistration()) return;
-    if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        for(int i=0; i<MAX_API_QUEUE; i++) if(!apiQueue[i].active) {
-            apiQueue[i].type = API_REQUEST_LOCATE;
-            apiQueue[i].id1 = spoolId;
-            apiQueue[i].id2 = locationId;
-            apiQueue[i].str1 = spoolTagUuid;
-            apiQueue[i].str2 = locationTagUuid;
-            apiQueue[i].val = 0.0f;
-            apiQueue[i].active = true;
-            break;
-        }
-        xSemaphoreGive(queueMutex);
-    }
-}
-
-void sendRfidResultAsync(String tagUuid, int spoolId, int locationId, bool success, String errorMessage, float remainingWeight) {
-    if (!checkFilamanRegistration()) return;
-    if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        for(int i=0; i<MAX_API_QUEUE; i++) if(!apiQueue[i].active) {
-            apiQueue[i].type = API_REQUEST_RFID_RESULT;
-            apiQueue[i].str1 = tagUuid;
-            apiQueue[i].id1 = spoolId;
-            apiQueue[i].id2 = locationId;
-            apiQueue[i].bool1 = success;
-            apiQueue[i].str3 = errorMessage;
-            apiQueue[i].remainingWeight = remainingWeight;
-            apiQueue[i].active = true;
+            Serial.printf("Weight queued for Bambuddy API (slot %d)\n", i);
             break;
         }
         xSemaphoreGive(queueMutex);

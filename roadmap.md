@@ -28,10 +28,10 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 - [x] Repository geforkt und in VS Code geklont.
 - [x] Projekt-Fahrplan und Kontext-Datei erstellt.
 - [x] Die relevanten C++ Dateien finden, die NFC-Scans und API-Anfragen verarbeiten.
-- [ ] Den GET-Request (die Logik-Weiche) implementieren.
-- [ ] Den POST-Request für Workflow 1 implementieren.
-- [ ] Den POST-Request für Workflow 2 implementieren.
-- [ ] Code für `api.h` und `api.cpp` schreiben und bereinigen.
+- [x] Den GET-Request (die Logik-Weiche) implementieren.
+- [x] Den POST-Request für Workflow 1 implementieren.
+- [x] Den POST-Request für Workflow 2 implementieren.
+- [x] Code für `api.h` und `api.cpp` schreiben und bereinigen.
 - [ ] Code für `main.cpp` anpassen (Weiche nutzen, Schreib-Logik entfernen).
 - [ ] Auf den ESP32 flashen und testen.
 

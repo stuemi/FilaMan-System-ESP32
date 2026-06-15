@@ -15,27 +15,21 @@ typedef enum {
 typedef enum {
     API_REQUEST_REGISTER,
     API_REQUEST_HEARTBEAT,
-    API_REQUEST_WEIGHT,
-    API_REQUEST_LOCATE,
-    API_REQUEST_RFID_RESULT
+    API_REQUEST_SYNC_BAMBUDDY // Bambuddy: Umbenannt von API_REQUEST_WEIGHT, Rest entfernt
 } FilamanApiRequestType;
 
 extern volatile filamanApiStateType filamanApiState;
 extern bool filamanConnected;
 
-// FilaMan API functions
+// API functions (angepasst für Bambuddy Integration)
 bool initFilaman();
-bool registerDevice(const String& deviceCode);
+bool registerDevice(const String& deviceCode); // Dummy für Kompatibilität
 void sendHeartbeatAsync();
-void sendWeightAsync(int spoolId, String tagUuid, float weight);
-void sendLocationAsync(int spoolId, String spoolTagUuid, int locationId, String locationTagUuid);
-void sendRfidResultAsync(String tagUuid, int spoolId, int locationId, bool success, String errorMessage, float remainingWeight = 0);
+void syncBambuddySpoolAsync(String tagUuid, float weight); // Bambuddy Weiche
 
 // Internal blocking functions (used by async task)
-bool sendHeartbeat();
-bool sendWeight(int spoolId, String tagUuid, float weight);
-bool sendLocation(int spoolId, String spoolTagUuid, int locationId, String locationTagUuid);
-bool sendRfidResult(String tagUuid, int spoolId, int locationId, bool success, String errorMessage, float remainingWeight = 0);
+bool sendHeartbeat(); // Dummy
+bool syncBambuddySpool(String tagUuid, float weight); // Bambuddy Weiche
 
 // Helper functions
 void saveFilamanConfig();
