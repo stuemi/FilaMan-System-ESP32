@@ -33,6 +33,7 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 - [x] Den POST-Request für Workflow 2 implementieren.
 - [x] Code für `api.h` und `api.cpp` schreiben und bereinigen.
 - [x] Code für `main.cpp` anpassen (Weiche nutzen, Schreib-Logik entfernen).
+- [x] Komplett ungenutzte "Tag schreiben" Logik aus `nfc.cpp` und `website.cpp` entfernen.
 - [ ] Auf den ESP32 flashen und testen.
 
 ## Geplante Datei-Änderungen (Architektur-Umbau)
@@ -48,3 +49,7 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 ### 3. `src/main.cpp`
 - **Was geändert wird:** NFC-Lese-Logik bereinigen (Unterscheidung zwischen Bambu/NTAG mit spool_id entfernen, da nur noch `tag_uid` relevant ist). Aufruf der API-Queue auf die neuen Parameter anpassen. Komplettes Entfernen der "Tag-Schreiben"-Logikblöcke.
 - **Warum:** Da Bambuddy die Tags nur als "Nummernschild" erkennt, wird der Code massiv verschlankt und robuster gegen Fehler gemacht.
+
+### 4. `src/nfc.cpp` & `src/website.cpp`
+- **Was geändert wird:** Hunderte Zeilen Code für die komplexe NDEF-Schreiblogik (`ntag2xx_WriteNDEF`, `writeJsonToTag` etc.) sowie die zugehörigen API-Endpunkte in `website.cpp` (`/api/v1/rfid/write`) werden gelöscht.
+- **Warum:** Bambuddy erfordert keine beschriebenen Tags. Die Code-Basis wird um fast 800 Zeilen extrem fehleranfälligen Code erleichtert, die Binärgröße verringert sich und das System läuft stabiler.

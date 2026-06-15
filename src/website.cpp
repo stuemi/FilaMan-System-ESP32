@@ -71,13 +71,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 "\"autoTare\":" + String(autoTare ? "true" : "false") + ""
                 "}");
         }
-        else if (doc["type"] == "writeNfcTag") {
-            if (doc["payload"].is<JsonObject>()) {
-                String payloadString;
-                serializeJson(doc["payload"], payloadString);
-                startWriteJsonToTag((doc["tagType"] == "spool") ? true : false, payloadString.c_str());
-            }
-        }
         else if (doc["type"] == "scale") {
             if (doc["payload"] == "tare") {
                 scaleTareRequest = true;
@@ -98,11 +91,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             }
         }
     }
-}
-
-void sendWriteResult(AsyncWebSocketClient *client, uint8_t success) {
-    String response = "{\"type\":\"writeNfcTag\",\"success\":" + String(success ? "1" : "0") + "}";
-    if (client) client->text(response); else ws.textAll(response);
 }
 
 void foundNfcTag(AsyncWebSocketClient *client, uint8_t success) {
@@ -196,36 +184,6 @@ void setupWebserver(AsyncWebServer &server) {
         } else {
             request->send(400, "application/json", "{\"success\": false}");
         }
-    });
-
-    server.on("/api/v1/rfid/write", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, (const uint8_t*)data, len);
-        if (error) {
-            request->send(400, "application/json", "{\"error\": \"Invalid JSON\"}");
-            return;
-        }
-
-        // Check if NFC is busy
-        if (nfcWriteInProgress) {
-            request->send(503, "application/json", "{\"error\": \"NFC busy\"}");
-            return;
-        }
-
-        String payloadString;
-        serializeJson(doc, payloadString);
-
-        bool hasSpoolId = !doc["spool_id"].isNull() || !doc["sm_id"].isNull();
-        int spoolId = doc["spool_id"] | 0;
-        if (spoolId == 0 && doc["sm_id"].is<String>()) {
-            spoolId = doc["sm_id"].as<String>().toInt();
-        }
-        int locationId = doc["location_id"] | 0;
-
-        startWriteJsonToTag(hasSpoolId, payloadString.c_str(), spoolId, locationId);
-
-        // Respond immediately
-        request->send(200, "application/json", "{\"success\": true, \"message\": \"Schreibvorgang wurde gestartet. Bitte Tag bereit halten...\"}");
     });
 
     server.on("/api/version", HTTP_GET, [](AsyncWebServerRequest *request){
