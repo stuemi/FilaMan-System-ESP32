@@ -1,88 +1,33 @@
-# FilaMan - Filament Management System
+# Bambuddy Scale Firmware (Basis: FilaMan)
 
-⚠️ **Wichtig: Ab Version 3.0.0 erfordert dieses System das [FilaMan-System](https://github.com/Fire-Devils/filaman-system) Backend. Frühere direkte Integrationen (Spoolman, MQTT, Bambu Lab) wurden in das zentrale FilaMan-System verschoben.**
+⚠️ **Wichtig: Dieser Fork des FilaMan-Projekts wurde exklusiv modifiziert, um direkt mit einer lokalen [Bambuddy](https://github.com/bambuddy)-Instanz zu kommunizieren.**
 
-FilaMan ist ein Werkzeug zur Filamentverwaltung für den 3D-Druck. Es verwendet ESP32-Hardware zur Gewichtsmessung und Verwaltung von NFC-Tags.
-Benutzer können Filamentspulen verwalten und das Gerät über eine Weboberfläche konfigurieren.
-Das System integriert sich nahtlos in das [FilaMan-System](https://github.com/Fire-Devils/filaman-system).
-
-**NEU ab 3.3.1:** Eine abgespeckte Version ohne Waage ist ebenfalls möglich. Details finden sich unter [NFC-only Modus](docs/NFC-only_mode_de.md).
+Diese Firmware nutzt ESP32-Hardware zur Gewichtsmessung und Identifizierung von Filament-Spulen via NFC.
+Wird eine Spule gescannt, sendet das Gerät das Gewicht automatisch an die Bambuddy-API oder legt unbekannte Spulen vollautomatisch als "Auto-gen" in der Datenbank an.
 
 ![Waage](./img/scale_trans.png)
-
 
 Weitere Bilder finden Sie im [img Ordner](/img/)
 oder auf meiner Website: [FilaMan Website](https://www.filaman.app)
 Deutsches Erklärvideo: [Youtube](https://youtu.be/uNDe2wh9SS8?si=b-jYx4I1w62zaOHU)
 Discord Server: [https://discord.gg/my7Gvaxj2v](https://discord.gg/my7Gvaxj2v)
 
-## NEU: Recycling Fabrik
-
-<a href="https://www.recyclingfabrik.com" target="_blank">
-    <img src="img/rf-logo.png" alt="Recycling Fabrik" width="200">
-</a>
-
-FilaMan wird von der [Recycling Fabrik](https://www.recyclingfabrik.com) unterstützt.
-Die Recycling Fabrik wird in Kürze FilaMan-kompatible NFC-Tags auf ihren Spulen anbieten. Dies hat den Vorteil,
-dass die Spulen automatisch erkannt und über die FilaMan-Waage direkt in das FilaMan-System importiert werden können.
-
-**Was ist die Recycling Fabrik?**
-
-Die Recycling Fabrik ist ein deutsches Unternehmen, das sich der Entwicklung und Herstellung von nachhaltigem 3D-Druck-Filament verschrieben hat.
-Ihre Filamente bestehen zu 100 % aus recyceltem Material von Endkunden und aus der Industrie – für eine umweltbewusste und ressourcenschonende Zukunft.
-
-Weitere Informationen und Produkte finden Sie hier: [www.recyclingfabrik.com](https://www.recyclingfabrik.com)
-
----
-
-### Detailliertere Informationen zur Nutzung: [Wiki](https://github.com/ManuelW77/Filaman/wiki)
-
 ### ESP32 Hardware-Features
 - **Gewichtsmessung:** Verwendung einer Wägezelle mit HX711-Verstärker für präzises Gewichts-Tracking.
-- **NFC-Tag Lesen/Schreiben:** PN532-Modul zum Lesen und Schreiben von Filamentdaten auf NFC-Tags.
-- **OLED-Display:** Zeigt aktuelles Gewicht und Verbindungsstatus (WiFi, FilaMan-System) an.
+- **NFC-Tag Scannen:** PN532-Modul zum Lesen der Hardware-UID von NFC-Tags. (Kein Beschreiben notwendig!)
+- **OLED-Display:** Zeigt aktuelles Gewicht und Verbindungsstatus an.
 - **WiFi-Konnektivität:** WiFiManager für einfache Netzwerkkonfiguration.
-- **NFC-Tag NTAG213 NTAG215:** Verwendung von NTAG213, besser NTAG215 wegen ausreichendem Platz auf dem Tag.
+- **Beliebige NFC-Tags:** Jeder NFC-Tag oder Aufkleber kann verwendet werden, da nur die Hardware-UID als Referenz für Bambuddy dient.
 
 ### Weboberflächen-Features
 - **Echtzeit-Updates:** WebSocket-Verbindung für Live-Datenaktualisierungen.
-- **NFC-Tag-Verwaltung:**
-	- Schreiben von Filamentdaten auf NFC-Tags.
-	- Unterstützt automatische Spulenerkennung in kompatiblen Systemen.
-- **FilaMan-System Integration:**
-  - Synchronisierung der Spulendaten mit dem zentralen Backend.
+- **Bambuddy Integration:**
+  - Synchronisierung der Spulendaten mit dem Bambuddy-Server.
   - Automatische Aktualisierung der Spulengewichte.
-  - Verfolgung von NFC-Tag-Zuweisungen.
 
 ### Wenn Sie meine Arbeit unterstützen möchten, freue ich mich über einen Kaffee
 
 <a href="https://www.buymeacoffee.com/manuelw" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" ></a>
-
-## Unterstützung von Hersteller-Tags
-
-🎉 **Spannende Neuigkeiten!** FilaMan unterstützt jetzt **Hersteller-Tags** - NFC-Tags, die direkt von Filamentherstellern vorprogrammiert geliefert werden!
-
-### Erster Hersteller-Partner: RecyclingFabrik
-
-Wir freuen uns bekannt zu geben, dass [**RecyclingFabrik**](https://www.recyclingfabrik.de) der **erste Filamenthersteller** sein wird, der FilaMan unterstützt, indem er NFC-Tags im FilaMan-Format auf seinen Spulen anbietet!
-
-**In Kürze:** RecyclingFabrik-Spulen werden NFC-Tags enthalten, die sich automatisch in Ihr FilaMan-System integrieren, wodurch eine manuelle Einrichtung entfällt und perfekte Kompatibilität gewährleistet wird.
-
-### Funktionsweise von Hersteller-Tags
-
-Wenn Sie einen Hersteller-NFC-Tag zum ersten Mal scannen:
-1. **Automatische Markenerkennung:** FilaMan erkennt den Hersteller und erstellt die Marke im FilaMan-System.
-2. **Erstellung des Filamenttyps:** Alle Materialspezifikationen werden automatisch hinzugefügt.
-3. **Spulenregistrierung:** Ihre spezifische Spule wird mit korrektem Gewicht und Spezifikationen registriert.
-4. **Zukünftige Schnellerkennung:** Nachfolgende Scans nutzen die Schnellerkennung für sofortige Gewichtsmessung.
-
-**Für detaillierte technische Informationen:** [Dokumentation zu Hersteller-Tags](README_ManufacturerTags_EN.md) (Englisch)
-
-### Vorteile für Benutzer
-- ✅ **Keine manuelle Einrichtung** - Einfach scannen und wiegen.
-- ✅ **Perfekte Datengenauigkeit** - Vom Hersteller verifizierte Spezifikationen.
-- ✅ **Sofortige Integration** - Nahtlose Kompatibilität mit dem FilaMan-System.
-- ✅ **Zukunftssicher** - Tags funktionieren mit jedem FilaMan-kompatiblen System.
 
 ## Detaillierte Funktionalität
 

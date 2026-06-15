@@ -49,6 +49,12 @@
                     <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter the base URL of your Bambuddy instance (without trailing slash).</p>
                 </div>
                 
+                <div class="fm-form-group" style="margin-top: 1rem;">
+                    <label class="fm-label" for="bambuddyApiKey">Bambuddy API Key</label>
+                    <input type="password" id="bambuddyApiKey" class="fm-input" value="%apiKey%" placeholder="bb_...">
+                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter your Bambuddy API Key for authentication.</p>
+                </div>
+
                 <button id="registerBtn" class="fm-btn fm-btn-primary">Save Configuration</button>
                 <div id="statusMessage" style="margin-top: 1.5rem;"></div>
             </div>
@@ -157,10 +163,11 @@
 
         document.getElementById('registerBtn').addEventListener('click', () => {
             const url = document.getElementById('filamanUrl').value;
+            const apiKey = document.getElementById('bambuddyApiKey').value;
             const statusMessage = document.getElementById('statusMessage');
 
-            if (!url) {
-                statusMessage.textContent = 'Please provide the Bambuddy URL';
+            if (!url || !apiKey) {
+                statusMessage.textContent = 'Please provide both URL and API Key';
                 statusMessage.style.color = 'var(--error-text)';
                 return;
             }
@@ -171,7 +178,7 @@
             fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url, code: "dummy" }) // Sende Dummy-Code, da der C++ Endpunkt dies strukturell noch erwartet
+                body: JSON.stringify({ url: url, api_key: apiKey })
             })
             .then(response => response.json())
             .then(data => {

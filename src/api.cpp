@@ -11,9 +11,6 @@
 #include "display.h"
 #include "lang.h"
 
-// Bambuddy: Fest hinterlegter API-Schlüssel
-const String BAMBUDDY_API_KEY = "bb_Kvg_PtfDk0UAZnYx68z8B5PrMdJ4m2XxAD8DmbDRN8g";
-
 volatile filamanApiStateType filamanApiState = API_IDLE;
 bool filamanConnected = false;
 
@@ -53,12 +50,13 @@ void loadFilamanConfig() {
 }
 
 bool checkFilamanRegistration() {
-    // Bambuddy: Benötigt keinen Handshake-Token. URL im NVS reicht aus.
-    return filamanUrl.length() > 0;
+    // Bambuddy: Benötigt URL und API-Key (in filamanToken gespeichert) im NVS.
+    return filamanUrl.length() > 0 && filamanToken.length() > 0;
 }
 
 bool registerDevice(const String& deviceCode) {
-    // Bambuddy: Dummy-Funktion für FilaMan-Kompatibilität
+    // Bambuddy: Speichere den via Webinterface übergebenen API-Key
+    filamanToken = deviceCode;
     filamanRegistered = true;
     saveFilamanConfig();
     return true;
@@ -92,8 +90,8 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
     String getUrl = filamanUrl + "/api/v1/inventory/spools?tag_uid=" + tagUuid;
     http.begin(getUrl);
     
-    http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
-    http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+    http.addHeader("Authorization", "Bearer " + filamanToken);
+    http.addHeader("X-Api-Key", filamanToken);
     
     int httpCode = http.GET();
     String response = http.getString();
@@ -128,8 +126,8 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
         Serial.printf("syncBambuddy: Spule gefunden (ID: %d). Sende Update...\n", foundSpoolId);
         http.begin(filamanUrl + "/api/v1/spoolbuddy/scale/update-spool-weight");
         http.addHeader("Content-Type", "application/json");
-        http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
-        http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+        http.addHeader("Authorization", "Bearer " + filamanToken);
+        http.addHeader("X-Api-Key", filamanToken);
 
         JsonDocument postDoc;
         postDoc["spool_id"] = foundSpoolId;
@@ -152,8 +150,8 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
         Serial.println("syncBambuddy: Spule unbekannt. Erstelle neue Auto-gen Spule...");
         http.begin(filamanUrl + "/api/v1/inventory/spools");
         http.addHeader("Content-Type", "application/json");
-        http.addHeader("Authorization", "Bearer " + BAMBUDDY_API_KEY);
-        http.addHeader("X-Api-Key", BAMBUDDY_API_KEY);
+        http.addHeader("Authorization", "Bearer " + filamanToken);
+        http.addHeader("X-Api-Key", filamanToken);
 
         JsonDocument postDoc;
         postDoc["tag_uid"] = tagUuid;

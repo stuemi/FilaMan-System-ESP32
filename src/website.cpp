@@ -31,6 +31,7 @@ nfcReaderStateType lastnfcReaderState = NFC_IDLE;
 String templateProcessor(const String& var) {
     if (var == "registered") return filamanRegistered ? "Registered" : "Not Registered";
     if (var == "filamanUrl") return filamanUrl;
+    if (var == "apiKey") return filamanToken;
     if (var == "autoTare") return autoTare ? "checked" : "";
     return String();  // Unbekannte Variable - leer zurückgeben
 }
@@ -178,8 +179,11 @@ void setupWebserver(AsyncWebServer &server) {
             return;
         }
         if (doc["url"].is<String>()) filamanUrl = doc["url"].as<String>();
-        saveFilamanConfig();
-        if (registerDevice(doc["code"].as<String>())) {
+        
+        String apiKey = "";
+        if (doc["api_key"].is<String>()) apiKey = doc["api_key"].as<String>();
+        
+        if (registerDevice(apiKey)) {
             request->send(200, "application/json", "{\"success\": true}");
         } else {
             request->send(400, "application/json", "{\"success\": false}");

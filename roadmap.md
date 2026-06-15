@@ -7,7 +7,7 @@ Es soll also die Hardware von Filaman genutzt werden und die gemessenen Daten en
 ## Globale Regeln
 - **Code-Kommentare:** Alle neuen Kommentare im C++ Code müssen auf Deutsch sein.
 - **Git Commits:** Alle Commit-Nachrichten müssen auf Deutsch sein.
-- API_Schlüssel von Bambuddy lautet: bb_Kvg_PtfDk0UAZnYx68z8B5PrMdJ4m2XxAD8DmbDRN8g
+- **API-Schlüssel:** Der Bambuddy API-Schlüssel (z. B. `bb_Kvg_PtfDk0UAZnYx68z8B5PrMdJ4m2XxAD8DmbDRN8g`) wird dynamisch über das Webinterface konfiguriert und im Flash-Speicher der Waage abgelegt.
 - **NFC Write-Logik:** Die originale FilaMan "Tag-Schreib-Logik" wird in diesem Projekt absichtlich entfernt, da Bambuddy als "Read-Only" System bezüglich der NFC-Tags fungiert (es wird nur die Hardware-UID gelesen).
 
 ## Workflow 1: Bekannte Spule Gewicht aktualisieren
