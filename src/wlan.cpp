@@ -15,7 +15,7 @@ uint8_t wifiErrorCounter = 0;
 void wifiSettings() {
     // Standard WiFi-Einstellungen für höchste Stabilität mit ESPAsyncWebServer
     WiFi.mode(WIFI_STA);
-    WiFi.setHostname("FilaMan");
+    WiFi.setHostname("BambuddyScale");
 
     // ESP32-Core Auto-Reconnect aktivieren (unabhängig vom WiFiManager-Flag).
     // Sorgt dafür, dass der WiFi-Stack autonom direkt nach einem Disconnect
@@ -95,8 +95,8 @@ void initWiFi() {
 
   oledShowProgressBar(1, NUM_SETUP_STEPS, DISPLAY_BOOT_TEXT, tr(STR_WIFI_INIT));
 
-  //bool res = wm.autoConnect("FilaMan"); // anonymous ap
-  if(!wm.autoConnect("FilaMan")) {
+  //bool res = wm.autoConnect("BambuddyScale"); // anonymous ap
+  if(!wm.autoConnect("BambuddyScale")) {
     Serial.println("Failed to connect or hit timeout");
     // ESP.restart();
     oledShowTopRow();

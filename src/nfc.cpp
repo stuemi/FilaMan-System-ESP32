@@ -119,9 +119,6 @@ void scanRfidTask(void * parameter) {
         for (uint8_t i = 0; i < uidLength; i++) {
           if (uid[i] < 0x10) uidString += "0";
           uidString += String(uid[i], HEX);
-          if (i < uidLength - 1) {
-              uidString += ":";
-          }
         }
         uidString.toUpperCase();
 
