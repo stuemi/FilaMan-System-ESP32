@@ -16,11 +16,11 @@ TaskHandle_t ScaleTask;
 int16_t weight = 0;
 
 // Weight stabilization variables
-#define MOVING_AVERAGE_SIZE 8           // Reduced from 20 to 8 for faster response
-#define LOW_PASS_ALPHA 0.3f            // Increased from 0.15 to 0.3 for faster tracking
-#define DISPLAY_THRESHOLD 0.3f         // Reduced from 0.5 to 0.3g for more responsive display
-#define API_THRESHOLD 1.5f             // Reduced from 2.0 to 1.5g for faster API actions
-#define MEASUREMENT_INTERVAL_MS 30     // Reduced from 50ms to 30ms for faster updates
+#define MOVING_AVERAGE_SIZE 12          // Erhöht: Glättet mehr, bleibt aber reaktionsschnell.
+#define LOW_PASS_ALPHA 0.2f             // Reduziert: Macht den Filter stabiler gegen Rauschen.
+#define DISPLAY_THRESHOLD 1.0f          // Erhöht: Verhindert das "Flackern" der Anzeige bei kleinen Schwankungen.
+#define API_THRESHOLD 1.5f              // Beibehalten: Löst API-Aktionen weiterhin schnell aus.
+#define MEASUREMENT_INTERVAL_MS 30      // Beibehalten: Schnelle Messungen für genügend Datenpunkte.
 
 float weightBuffer[MOVING_AVERAGE_SIZE];
 uint8_t bufferIndex = 0;
