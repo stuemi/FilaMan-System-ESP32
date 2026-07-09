@@ -400,7 +400,7 @@ void start_scale(bool touchSensorConnected) {
 
 uint8_t calibrate_scale() {
   uint8_t returnState = 0;
-  float newCalibrationValue;
+  float calibrationFactor;
 
   scaleCalibrationActive = true;
 
@@ -413,42 +413,46 @@ uint8_t calibrate_scale() {
   if (scale.wait_ready_timeout(1000))
   {
 
-    scale.set_scale();
-    oledShowProgressBar(0, 3, tr(STR_SCALE_CAL), tr(STR_EMPTY_SCALE));
-
-    for (uint16_t i = 0; i < 5000; i++) {
-      yield();
-      vTaskDelay(pdMS_TO_TICKS(1));
-      esp_task_wdt_reset();
-    }
-
+    // Schritt 1: Waage leeren und tarieren
+    oledShowProgressBar(0, 5, tr(STR_SCALE_CAL), tr(STR_EMPTY_SCALE));
+    friendlyWait(3000);
     scale.tare();
     Serial.println("Tare done...");
-    Serial.print("Place a known weight on the scale...");
 
-    oledShowProgressBar(1, 3, tr(STR_SCALE_CAL), tr(STR_PLACE_WEIGHT));
+    // Schritt 2: Erstes bekanntes Gewicht auflegen (z.B. 500g)
+    oledShowProgressBar(1, 5, tr(STR_SCALE_CAL), "1. Gewicht (500g)");
+    friendlyWait(5000);
+    long reading1 = scale.get_value(20);
+    Serial.printf("Erster Rohwert: %ld\n", reading1);
 
-    for (uint16_t i = 0; i < 5000; i++) {
-      yield();
-      vTaskDelay(pdMS_TO_TICKS(1));
-      esp_task_wdt_reset();
+    // Schritt 3: Zweites bekanntes Gewicht auflegen (z.B. 1000g)
+    oledShowProgressBar(2, 5, tr(STR_SCALE_CAL), "2. Gewicht (1000g)");
+    friendlyWait(8000); // Mehr Zeit zum Wechseln
+    long reading2 = scale.get_value(20);
+    Serial.printf("Zweiter Rohwert: %ld\n", reading2);
+
+    // Schritt 4: Waage wieder leeren
+    oledShowProgressBar(3, 5, tr(STR_SCALE_CAL), tr(STR_REMOVE_WEIGHT));
+    friendlyWait(5000);
+
+    // Schritt 5: Kalibrierungsfaktor berechnen
+    // Wir verwenden die Zwei-Punkt-Formel: (Rohwert2 - Rohwert1) / (Gewicht2 - Gewicht1)
+    // Hier: (reading2 - reading1) / (1000g - 500g)
+    if (reading2 > reading1) {
+      calibrationFactor = (float)(reading2 - reading1) / (SCALE_LEVEL_WEIGHT_2 - SCALE_LEVEL_WEIGHT_1);
+    } else {
+      calibrationFactor = 0; // Fehlerfall
     }
 
-    float newCalibrationValue = scale.get_units(10);
-    Serial.print("Result: ");
-    Serial.println(newCalibrationValue);
-
-    newCalibrationValue = newCalibrationValue/SCALE_LEVEL_WEIGHT;
-
-    if (newCalibrationValue > 0)
+    if (calibrationFactor > 0)
     {
-      Serial.print("New calibration value has been set to: ");
-      Serial.println(newCalibrationValue);
+      Serial.print("Neuer Kalibrierungsfaktor: ");
+      Serial.println(calibrationFactor);
 
       // Speichern mit NVS
       Preferences preferences;
       preferences.begin(NVS_NAMESPACE_SCALE, false); // false = readwrite
-      preferences.putFloat(NVS_KEY_CALIBRATION, newCalibrationValue);
+      preferences.putFloat(NVS_KEY_CALIBRATION, calibrationFactor);
       preferences.end();
 
       // Verifizieren
@@ -456,39 +460,31 @@ uint8_t calibrate_scale() {
       float verifyValue = preferences.getFloat(NVS_KEY_CALIBRATION, 0);
       preferences.end();
 
-      Serial.print("Verified stored value: ");
+      Serial.print("Gespeicherter Wert verifiziert: ");
       Serial.println(verifyValue);
 
-      oledShowProgressBar(2, 3, tr(STR_SCALE_CAL), tr(STR_REMOVE_WEIGHT));
+      oledShowProgressBar(4, 5, tr(STR_SCALE_CAL), "Anwenden...");
 
-      scale.set_scale(newCalibrationValue);
+      scale.set_scale(calibrationFactor);
       resetWeightFilter(); // Reset filter after calibration
-      for (uint16_t i = 0; i < 2000; i++) {
-        yield();
-        vTaskDelay(pdMS_TO_TICKS(1));
-        esp_task_wdt_reset();
-      }
+      friendlyWait(2000);
 
-      oledShowProgressBar(3, 3, tr(STR_SCALE_CAL), tr(STR_COMPLETED));
+      oledShowProgressBar(5, 5, tr(STR_SCALE_CAL), tr(STR_COMPLETED));
 
       // For some reason it is not possible to re-tare the scale here, it will result in a wdt timeout. Instead let the scale loop do the taring
       //scale.tare();
       scaleTareRequest = true;
 
-      for (uint16_t i = 0; i < 2000; i++) {
-        yield();
-        vTaskDelay(pdMS_TO_TICKS(1));
-        esp_task_wdt_reset();
-      }
+      friendlyWait(2000);
 
       scaleCalibrated = true;
       returnState = 1;
     }
     else
     {
-      Serial.println("Calibration value is invalid. Please recalibrate.");
+      Serial.println("Kalibrierungsfaktor ist ungültig. Bitte neu kalibrieren.");
 
-      oledShowProgressBar(3, 3, tr(STR_FAILURE), tr(STR_CALIBRATION_ERROR));
+      oledShowProgressBar(5, 5, tr(STR_FAILURE), tr(STR_CALIBRATION_ERROR));
 
       for (uint16_t i = 0; i < 50000; i++) {
         yield();

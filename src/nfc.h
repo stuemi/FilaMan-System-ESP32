@@ -19,5 +19,6 @@ extern String nfcJsonData;
 extern String activeTagUuid;
 extern volatile nfcReaderStateType nfcReaderState;
 extern bool tagProcessed;
+extern bool isBambuTag;
 
 #endif

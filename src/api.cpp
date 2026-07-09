@@ -8,6 +8,7 @@
 #include "config.h"
 #include <WiFi.h>
 #include "display.h"
+#include "website.h" // Für 'ws' WebSocket-Objekt
 #include "lang.h"
 
 volatile filamanApiStateType filamanApiState = API_IDLE;
@@ -21,6 +22,7 @@ float pendingWeightForAssignment = 0.0f;
 void clearPendingAssignment() {
     isAssignmentPending = false;
     pendingTagForAssignment = "";
+    pendingWeightForAssignment = 0.0f;
 }
 
 struct ApiRequest {
@@ -30,7 +32,7 @@ struct ApiRequest {
     String str1;
     String str2;
     float val;
-    bool bool1; // success
+    bool bool1; // isBambuTag
     String str3; // error message
     float remainingWeight; // remaining weight from rfid-result
     bool active = false;
@@ -90,7 +92,7 @@ bool sendHeartbeatWithRetry(int maxRetries = 2) {
 }
 
 // Bambuddy: Zentrale Logik-Weiche für Workflow 1 & 2
-bool syncBambuddySpool(String tagUuid, float measuredWeight) {
+bool syncBambuddySpool(String tagUuid, float measuredWeight, bool isBambuTag) {
     Serial.printf("syncBambuddy: starte API-Abfrage - tagUuid=%s, weight=%.1f\n", tagUuid.c_str(), measuredWeight);
     if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
         Serial.println("ERROR: Keine URL konfiguriert oder WiFi nicht verbunden");
@@ -129,14 +131,20 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
             // Die Antwort ist ein Array von Spulen. Wir müssen es durchsuchen.
             if (doc.is<JsonArray>()) {
                 JsonArray spools = doc.as<JsonArray>();
-                Serial.printf("Durchsuche %d Spulen nach tag_uid: %s\n", spools.size(), tagUuid.c_str());
+                Serial.printf("Durchsuche %d Spulen nach Kennung: %s\n", spools.size(), tagUuid.c_str());
                 for (JsonObject spool : spools) {
-                    String serverTag = spool["tag_uid"] | "";
-                    // Wir prüfen, ob die UID vom Server mit der (kürzeren) gescannten UID beginnt.
-                    // tagUuid ist bereits in Großbuchstaben.
-                    if (serverTag.startsWith(tagUuid)) {
+                    // NEUE LOGIK: Zuerst auf tray_uuid prüfen, dann auf tag_uid
+                    String serverTrayUuid = spool["tray_uuid"] | "";
+                    String serverTagUid = spool["tag_uid"] | "";
+
+                    // Vergleich ist case-insensitive, da wir alles in Großbuchstaben haben
+                    if (!serverTrayUuid.isEmpty() && serverTrayUuid.equalsIgnoreCase(tagUuid)) {
                         foundSpoolId = spool["id"] | -1;
-                        Serial.printf("Treffer! Spule '%s' gefunden mit ID: %d\n", serverTag.c_str(), foundSpoolId);
+                        Serial.printf("Treffer via tray_uuid! Spule '%s' gefunden mit ID: %d\n", serverTrayUuid.c_str(), foundSpoolId);
+                        break; // Suche beenden, wenn Treffer gefunden
+                    } else if (!serverTagUid.isEmpty() && serverTagUid.equalsIgnoreCase(tagUuid)) {
+                        foundSpoolId = spool["id"] | -1;
+                        Serial.printf("Treffer via tag_uid! Spule '%s' gefunden mit ID: %d\n", serverTagUid.c_str(), foundSpoolId);
                         break; // Suche beenden, wenn Treffer gefunden
                     }
                 }
@@ -183,30 +191,30 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
         }
     } else {
         // WORKFLOW 2: Unbekannte Spule
-        // Prüfen, ob es eine Bambu-Spule ist. Wenn ja, nicht zuweisen, sondern Meldung anzeigen.
-        if (tagUuid.length() == 8) {
-            Serial.println("Unbekannte Bambu Lab Spule erkannt. Bitte ins AMS legen.");
+        // Hier kommt die neue Logik ins Spiel: Ist es ein Bambu-Tag oder ein generischer?
+        if (isBambuTag) {
+            // Es ist eine Bambu-Spule, die in Bambuddy nicht existiert.
+            Serial.println("Unbekannte Bambu Lab Spule erkannt. Nutzer muss sie zuerst im AMS registrieren.");
             oledDisplayText(tr(STR_BAMBU_SPOOL_DETECTED));
             oledSetPriority(DISPLAY_PRIORITY_INFO, 5000); // Meldung für 5 Sekunden anzeigen
             vTaskDelay(pdMS_TO_TICKS(5000));
             oledClearPriority();
             filamanConnected = true; // Verbindung ist ja ok
             return true; // Workflow "erfolgreich" beendet (kein Fehler)
+        } else {
+            // Es ist ein generischer, unbekannter Tag. Starte den Zuweisungs-Workflow.
+            isAssignmentPending = true;
+            pendingTagForAssignment = tagUuid;
+            pendingWeightForAssignment = measuredWeight;
+
+            Serial.println("Unbekannter generischer Tag. Starte Zuweisungs-Workflow.");
+            oledDisplayText(tr(STR_ASSIGN_SPOOL));
+            oledSetPriority(DISPLAY_PRIORITY_ACTION, 15000); // Längerer Timeout, damit Nutzer Zeit hat
+            ws.textAll("{\"type\":\"assignment_pending\"}"); // Web-Clients informieren
+
+            filamanConnected = true;
+            return true; // Workflow erfolgreich gestartet
         }
-
-        // WORKFLOW 1: Bekannte Spule -> Gewicht updaten
-        // Für alle anderen unbekannten Spulen (NTAG etc.) den Zuweisungs-Workflow starten.
-        isAssignmentPending = true;
-        pendingTagForAssignment = tagUuid;
-        pendingWeightForAssignment = measuredWeight;
-
-        Serial.println("Unbekannter Tag. Starte Zuweisungs-Workflow.");
-        oledDisplayText(tr(STR_ASSIGN_SPOOL));
-        oledSetPriority(DISPLAY_PRIORITY_ACTION, 15000); // Längerer Timeout, damit Nutzer Zeit hat
-        ws.textAll("{\"type\":\"assignment_pending\"}"); // Web-Clients informieren
-
-        filamanConnected = true;
-        return true; // Workflow erfolgreich gestartet
     }
 
     // Fehlerfall
@@ -323,7 +331,7 @@ void filamanApiTask(void* pvParameters) {
             filamanApiState = API_TRANSMITTING;
             switch (req.type) {
                 case API_REQUEST_HEARTBEAT: sendHeartbeatWithRetry(2); break;
-                case API_REQUEST_SYNC_BAMBUDDY: syncBambuddySpool(req.str1, req.val); break;
+                case API_REQUEST_SYNC_BAMBUDDY: syncBambuddySpool(req.str1, req.val, req.bool1); break;
                 default: break;
             }
             filamanApiState = API_IDLE;
@@ -354,9 +362,9 @@ void sendHeartbeatAsync() {
     }
 }
 
-void syncBambuddySpoolAsync(String tagUuid, float weight) {
+void syncBambuddySpoolAsync(String tagUuid, float weight, bool isBambuTag) {
     // Bambuddy: Asynchroner Aufruf zum Aktualisieren oder Anlegen einer Spule
-    Serial.printf("syncBambuddySpoolAsync: tagUuid=%s, weight=%.1f\n", tagUuid.c_str(), weight);
+    Serial.printf("syncBambuddySpoolAsync: tagUuid=%s, weight=%.1f, isBambu=%d\n", tagUuid.c_str(), weight, isBambuTag);
     if (!checkFilamanRegistration()) {
         Serial.println("ERROR: URL nicht konfiguriert");
         return;
@@ -373,6 +381,7 @@ void syncBambuddySpoolAsync(String tagUuid, float weight) {
             apiQueue[i].str1 = tagUuid;
             apiQueue[i].str2 = "";
             apiQueue[i].val = weight;
+            apiQueue[i].bool1 = isBambuTag;
             apiQueue[i].active = true;
             Serial.printf("Weight queued for Bambuddy API (slot %d)\n", i);
             break;

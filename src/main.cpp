@@ -224,8 +224,8 @@ void loop() {
     {
       tagProcessed = true;
 
-      // Bambuddy: Wir übergeben immer nur die tagUuid und das Gewicht.
-      syncBambuddySpoolAsync(activeTagUuid, weight);
+      // Bambuddy: Wir übergeben die erkannte UID, das Gewicht und ob es ein Bambu-Tag ist.
+      syncBambuddySpoolAsync(activeTagUuid, weight, isBambuTag);
       Serial.println("Weight queued for Bambuddy API");
 
       weightSend = 1;

@@ -31,7 +31,7 @@ extern float pendingWeightForAssignment;
 bool initFilaman();
 bool registerDevice(const String& deviceCode); // Dummy für Kompatibilität
 void sendHeartbeatAsync();
-void syncBambuddySpoolAsync(String tagUuid, float weight); // Bambuddy Weiche
+void syncBambuddySpoolAsync(String tagUuid, float weight, bool isBambuTag);
 
 // Internal blocking functions (used by async task)
 bool sendHeartbeat(); // Dummy

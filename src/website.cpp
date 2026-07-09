@@ -188,6 +188,16 @@ void setupWebserver(AsyncWebServer &server) {
         request->send(200, "application/json", untaggedSpoolsJson);
     });
 
+    server.on("/api/clear-assignment", HTTP_POST, [](AsyncWebServerRequest *request){
+        if (isAssignmentPending) {
+            clearPendingAssignment();
+            Serial.println("Web: Zuweisung durch Benutzer abgebrochen.");
+            request->send(200, "application/json", "{\"success\":true}");
+        } else {
+            request->send(400, "application/json", "{\"success\":false, \"error\":\"Keine Zuweisung aktiv\"}");
+        }
+    });
+
     server.on("/api/link-tag", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
         JsonDocument doc;
         if (deserializeJson(doc, (const char*)data, len) != DeserializationError::Ok) {
@@ -206,7 +216,7 @@ void setupWebserver(AsyncWebServer &server) {
         if (linkTag(spoolId, pendingTagForAssignment)) {
             if (updateWeight) {
                 // Starte einen asynchronen Gewichts-Update-Task für die gerade verlinkte Spule
-                syncBambuddySpoolAsync(pendingTagForAssignment, pendingWeightForAssignment);
+                syncBambuddySpoolAsync(pendingTagForAssignment, pendingWeightForAssignment, false); // isBambuTag ist hier false
             }
             clearPendingAssignment();
             request->send(200, "application/json", "{\"success\":true}");

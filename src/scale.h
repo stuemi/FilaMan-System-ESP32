@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "HX711.h"
+#include "config.h"
 
 uint8_t setAutoTare(bool autoTareValue);
 void start_scale(bool touchSensorConnected);
@@ -15,6 +16,9 @@ float calculateMovingAverage();
 float applyLowPassFilter(float newValue);
 int16_t processWeightReading(float rawWeight);
 int16_t getFilteredDisplayWeight();
+
+#define SCALE_LEVEL_WEIGHT_1 500.0f
+#define SCALE_LEVEL_WEIGHT_2 1000.0f
 
 extern HX711 scale;
 extern int16_t weight;

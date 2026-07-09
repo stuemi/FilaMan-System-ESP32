@@ -9,6 +9,9 @@
 #include "scale.h"
 #include "main.h"
 #include "lang.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/md.h"
+#include "hkdf.h"
 
 //Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
@@ -20,6 +23,7 @@ SemaphoreHandle_t nfcRequestMutex = NULL;
 String activeTagUuid = "";
 String nfcJsonData = "";
 bool tagProcessed = false;
+bool isBambuTag = false; // NEU: Flag zur Unterscheidung
 volatile bool nfcReadingTaskSuspendRequest = false;
 volatile bool nfcReadingTaskSuspendState = false;
 
@@ -32,6 +36,49 @@ volatile nfcReaderStateType nfcReaderState = NFC_IDLE;
 // 5 = erfolgreich geschrieben
 // 6 = reading
 // ***** PN532
+
+// Bambu Lab MIFARE Classic key derivation constants
+const byte BAMBU_MASTER_KEY[] = {
+    0x9A, 0x75, 0x9C, 0xF2, 0xC4, 0xF7, 0xCA, 0xFF,
+    0x22, 0x2C, 0xB9, 0x76, 0x9B, 0x41, 0xBC, 0x96
+};
+const byte BAMBU_CONTEXT[] = "RFID-A"; // 7 bytes, inklusive des impliziten Null-Terminators
+
+/**
+ * @brief Leitet den MIFARE-Schlüssel für einen bestimmten Sektor aus der UID ab.
+ * 
+ * @param uid Die 4-Byte-UID des Tags.
+ * @param sector Der Sektor (0-15), für den der Schlüssel benötigt wird.
+ * @param keyA Der Puffer, in den der 6-Byte-Schlüssel geschrieben wird.
+ * @return true bei Erfolg, false bei Fehler.
+ */
+bool deriveBambuKeyForSector(const uint8_t* uid, uint8_t sector, uint8_t* keyA) {
+    if (sector > 15) return false;
+
+    const mbedtls_md_info_t* md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    if (md_info == NULL) {
+        Serial.println("Fehler: SHA256 nicht verfügbar.");
+        return false;
+    }
+
+    // Wir brauchen nur 6 Bytes pro Sektor, also leiten wir nur die benötigten ab.
+    uint8_t okm[96]; // Puffer für alle 16 Sektorschlüssel
+    bool ok = hkdf_sha256(
+        BAMBU_MASTER_KEY,
+        sizeof(BAMBU_MASTER_KEY),
+        uid,
+        4,
+        BAMBU_CONTEXT,
+        7, // Explizit 7 Bytes, wie im Python-Skript (b"RFID-A\x00")
+        okm,
+        sizeof(okm));
+
+    if (!ok)
+        return false;
+
+    memcpy(keyA, okm + sector * 6, 6);
+    return true;
+}
 
 // Sichere Tag-Erkennung mit manuellem Retry und kurzen Timeouts
 bool safeTagDetection(uint8_t* uid, uint8_t* uidLength) {
@@ -90,6 +137,7 @@ void scanRfidTask(void * parameter) {
       {
         // Aktuellen Tag als noch nicht verarbeitet markieren
         tagProcessed = false;
+        isBambuTag = false; // Zurücksetzen für jeden neuen Scan
 
         // Display aufwecken, wenn ein Tag erkannt wird
         oledResetActivityTimer();
@@ -107,20 +155,104 @@ void scanRfidTask(void * parameter) {
         Serial.println("Tag erkannt, stabilisiere...");
         vTaskDelay(pdMS_TO_TICKS(500)); // Increased from 200ms for reliable reads
 
-        // Bambuddy: Wir lesen NUR noch die Hardware UID aus!
-        // Keine NDEF JSON Dekodierung mehr nötig. Das macht den Scan extrem schnell!
-        String uidString = "";
+        // =================================================================
+        // NEU: Detaillierter Daten-Dump des gesamten Tags für die Fehlersuche
+        // =================================================================
+        /*
+        Serial.println("--- Start Tag-Daten-Dump ---");
+        String fullUidString = "";
         for (uint8_t i = 0; i < uidLength; i++) {
-          if (uid[i] < 0x10) uidString += "0";
-          uidString += String(uid[i], HEX);
+          if (uid[i] < 0x10) fullUidString += "0";
+          fullUidString += String(uid[i], HEX);
         }
-        uidString.toUpperCase();
+        fullUidString.toUpperCase();
+        Serial.println("Vollständige UID: " + fullUidString);
+        Serial.printf("Tag-Länge: %d bytes\n", uidLength);
 
-        activeTagUuid = uidString;
+        // Wenn es ein 4-Byte-Tag ist, versuchen wir, ihn als MIFARE Classic zu behandeln
+        if (uidLength == 4) {
+            Serial.println("4-Byte-Tag erkannt, versuche MIFARE Classic Authentifizierung...");
+            uint8_t keyA[6];
+            uint8_t blockBuffer[16];
+            
+            // Wir versuchen, alle 16 Sektoren (Blöcke 0-63) zu lesen
+            for (uint8_t sector = 0; sector < 16; sector++) {
+                Serial.printf("\n--- Sektor %d ---\n", sector);
+                if (deriveBambuKeyForSector(uid, sector, keyA)) {
+                    Serial.print("Abgeleiteter Schlüssel für Sektor "); Serial.print(sector); Serial.print(": ");
+                    for(int k=0; k<6; k++) { Serial.printf("%02X ", keyA[k]); }
+                    Serial.println();
+
+                    // Authentifiziere den ersten Block des Sektors (Trailer-Block wäre sicherer, aber zum Lesen reicht das)
+                    if (nfc.mifareclassic_AuthenticateBlock(uid, uidLength, sector * 4, 0, keyA)) {
+                        Serial.printf("Authentifizierung für Sektor %d erfolgreich!\n", sector);
+                        // Lese die 4 Blöcke dieses Sektors
+                        for (uint8_t block = 0; block < 4; block++) {
+                            uint8_t currentBlock = (sector * 4) + block;
+                            if (nfc.mifareclassic_ReadDataBlock(currentBlock, blockBuffer)) {
+                                Serial.printf("  Block %02d: ", currentBlock);
+                                for(int j=0; j<16; j++) { Serial.printf("%02X ", blockBuffer[j]); }
+                                Serial.println();
+                            } else {
+                                Serial.printf("  Block %02d: Lesefehler nach Authentifizierung.\n", currentBlock);
+                            }
+                        }
+                    } else {
+                        Serial.printf("Authentifizierung für Sektor %d fehlgeschlagen.\n", sector);
+                    }
+                }
+            }
+        }
+        Serial.println("--- Ende Tag-Daten-Dump ---"); */
+
+        // =================================================================
+        // NEU: Intelligente Erkennung von Bambu-Tags vs. generischen Tags
+        // =================================================================
+        String uidString = ""; // Wird entweder die Hardware-UID oder die Tray-UUID
+
+        if (uidLength == 4) {
+            // Potenzieller Bambu-Tag (MIFARE Classic)
+            Serial.println("4-Byte-Tag erkannt, versuche Bambu-Authentifizierung...");
+            uint8_t keyA[6];
+            uint8_t blockBuffer[16];
+            uint8_t sector = 2; // Tray-UUID ist in Sektor 2
+
+            if (deriveBambuKeyForSector(uid, sector, keyA) && nfc.mifareclassic_AuthenticateBlock(uid, uidLength, sector * 4, 0, keyA)) {
+                Serial.println("Bambu-Authentifizierung erfolgreich! Lese Tray-UUID aus Block 9.");
+                isBambuTag = true;
+                if (nfc.mifareclassic_ReadDataBlock(9, blockBuffer)) {
+                    for (int j = 0; j < 16; j++) {
+                        if (blockBuffer[j] < 0x10) uidString += "0";
+                        uidString += String(blockBuffer[j], HEX);
+                    }
+                    uidString.toUpperCase();
+                    Serial.println("Gelesene Tray-UUID: " + uidString);
+                } else {
+                    Serial.println("Fehler: Konnte Block 9 nach Authentifizierung nicht lesen.");
+                    isBambuTag = false; // Fallback
+                }
+            } else {
+                Serial.println("Bambu-Authentifizierung fehlgeschlagen. Behandle als generischen MIFARE-Tag.");
+            }
+        }
+
+        // Fallback oder generischer Tag: Hardware-UID verwenden
+        if (uidString.isEmpty()) {
+            isBambuTag = false; // Sicherstellen, dass das Flag korrekt ist
+            for (uint8_t i = 0; i < uidLength; i++) {
+                if (uid[i] < 0x10) uidString += "0";
+                uidString += String(uid[i], HEX);
+            }
+            uidString.toUpperCase();
+            Serial.println("Verwende Hardware-UID: " + uidString);
+        }
+
+        activeTagUuid = uidString; // Setze die globale Tag-ID
         nfcReaderState = NFC_READ_SUCCESS;
         
         // Feedback ans Display - Geht nun sofort!
-        oledShowProgressBar(1, 4, tr(STR_SPOOL_TAG), "UID gelesen!");
+        const char* statusMsg = isBambuTag ? "Bambu Tag" : "NFC Tag";
+        oledShowProgressBar(1, 4, tr(STR_SPOOL_TAG), statusMsg);
         oledSetPriority(DISPLAY_PRIORITY_ACTION, 1000);
         Serial.println("Tag UID gelesen: " + uidString);
       }
@@ -132,6 +264,7 @@ void scanRfidTask(void * parameter) {
         nfcJsonData = "";
         activeTagUuid = "";
         tagProcessed = false;
+        isBambuTag = false;
         pauseMainTask = 0;
         oledClearPriority();
         oledShowWeight(weight);
@@ -142,6 +275,7 @@ void scanRfidTask(void * parameter) {
       {
         nfcReaderState = NFC_IDLE;
         tagProcessed = false;
+        isBambuTag = false;
         Serial.println("Tag nach erfolgreichem Lesen entfernt - bereit für nächsten Tag");
       }
 
