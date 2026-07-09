@@ -13,6 +13,16 @@
 volatile filamanApiStateType filamanApiState = API_IDLE;
 bool filamanConnected = false;
 
+// State for the new assignment workflow
+bool isAssignmentPending = false;
+String pendingTagForAssignment = "";
+float pendingWeightForAssignment = 0.0f;
+
+void clearPendingAssignment() {
+    isAssignmentPending = false;
+    pendingTagForAssignment = "";
+}
+
 struct ApiRequest {
     FilamanApiRequestType type;
     int id1;
@@ -94,15 +104,21 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
     // =========================================================
     // 1. GET Request: Prüfen, ob Spule in Bambuddy existiert
     // =========================================================
-    String getUrl = filamanUrl + "/api/v1/inventory/spools?tag_uid=" + tagUuid;
+    // Wir rufen ALLE Spulen ab, da die API kein Filtern nach tag_uid unterstützt
+    String getUrl = filamanUrl + "/api/v1/inventory/spools";
     http.begin(getUrl);
     
     http.addHeader("Authorization", "Bearer " + filamanToken);
-    http.addHeader("X-Api-Key", filamanToken);
     
     int httpCode = http.GET();
     String response = http.getString();
     http.end();
+
+    if (httpCode != 200) {
+        Serial.printf("GET-Request fehlgeschlagen. HTTP-Code: %d\n", httpCode);
+        Serial.println("Server-Antwort:");
+        Serial.println(response);
+    }
 
     int foundSpoolId = -1;
 
@@ -110,15 +126,20 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, response);
         if (!error) {
-            // Bambuddy API JSON parsen (flexibel für Objekt oder Array)
-            if (doc.is<JsonArray>() && doc.size() > 0) {
-                foundSpoolId = doc[0]["id"] | doc[0]["spool_id"] | -1;
-            } else if (doc["data"].is<JsonArray>() && doc["data"].size() > 0) {
-                foundSpoolId = doc["data"][0]["id"] | doc["data"][0]["spool_id"] | -1;
-            } else if (doc["id"].is<int>()) {
-                foundSpoolId = doc["id"] | -1;
-            } else if (doc["spool_id"].is<int>()) {
-                foundSpoolId = doc["spool_id"] | -1;
+            // Die Antwort ist ein Array von Spulen. Wir müssen es durchsuchen.
+            if (doc.is<JsonArray>()) {
+                JsonArray spools = doc.as<JsonArray>();
+                Serial.printf("Durchsuche %d Spulen nach tag_uid: %s\n", spools.size(), tagUuid.c_str());
+                for (JsonObject spool : spools) {
+                    String serverTag = spool["tag_uid"] | "";
+                    // Wir prüfen, ob die UID vom Server mit der (kürzeren) gescannten UID beginnt.
+                    // tagUuid ist bereits in Großbuchstaben.
+                    if (serverTag.startsWith(tagUuid)) {
+                        foundSpoolId = spool["id"] | -1;
+                        Serial.printf("Treffer! Spule '%s' gefunden mit ID: %d\n", serverTag.c_str(), foundSpoolId);
+                        break; // Suche beenden, wenn Treffer gefunden
+                    }
+                }
             }
         }
     }
@@ -134,15 +155,22 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
         http.begin(filamanUrl + "/api/v1/spoolbuddy/scale/update-spool-weight");
         http.addHeader("Content-Type", "application/json");
         http.addHeader("Authorization", "Bearer " + filamanToken);
-        http.addHeader("X-Api-Key", filamanToken);
 
         JsonDocument postDoc;
         postDoc["spool_id"] = foundSpoolId;
-        postDoc["weight"] = measuredWeight;
+        postDoc["weight_grams"] = measuredWeight;
         String payload;
         serializeJson(postDoc, payload);
 
+        Serial.println("Sende Payload für Update:");
+        Serial.println(payload);
+
         int postCode = http.POST(payload);
+        String responseBody = http.getString();
+        Serial.printf("Update-Request beendet. HTTP-Code: %d\n", postCode);
+        Serial.println("Server-Antwort:");
+        Serial.println(responseBody);
+
         http.end();
         
         if (postCode == 200 || postCode == 201 || postCode == 204) {
@@ -154,32 +182,31 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
             return true;
         }
     } else {
-        // WORKFLOW 2: Unbekannte Spule -> Neu anlegen (Auto-gen)
-        Serial.println("syncBambuddy: Spule unbekannt. Erstelle neue Auto-gen Spule...");
-        http.begin(filamanUrl + "/api/v1/inventory/spools");
-        http.addHeader("Content-Type", "application/json");
-        http.addHeader("Authorization", "Bearer " + filamanToken);
-        http.addHeader("X-Api-Key", filamanToken);
-
-        JsonDocument postDoc;
-        postDoc["tag_uid"] = tagUuid;
-        postDoc["material"] = "Auto-gen";
-        postDoc["weight"] = measuredWeight; 
-        
-        String payload;
-        serializeJson(postDoc, payload);
-
-        int postCode = http.POST(payload);
-        http.end();
-        
-        if (postCode == 200 || postCode == 201) {
-            oledShowProgressBar(4, 4, tr(STR_SPOOL_TAG), "Neu angelegt!");
-            oledSetPriority(DISPLAY_PRIORITY_ACTION, 3000);
-            vTaskDelay(pdMS_TO_TICKS(3000));
+        // WORKFLOW 2: Unbekannte Spule
+        // Prüfen, ob es eine Bambu-Spule ist. Wenn ja, nicht zuweisen, sondern Meldung anzeigen.
+        if (tagUuid.length() == 8) {
+            Serial.println("Unbekannte Bambu Lab Spule erkannt. Bitte ins AMS legen.");
+            oledDisplayText(tr(STR_BAMBU_SPOOL_DETECTED));
+            oledSetPriority(DISPLAY_PRIORITY_INFO, 5000); // Meldung für 5 Sekunden anzeigen
+            vTaskDelay(pdMS_TO_TICKS(5000));
             oledClearPriority();
-            filamanConnected = true;
-            return true;
+            filamanConnected = true; // Verbindung ist ja ok
+            return true; // Workflow "erfolgreich" beendet (kein Fehler)
         }
+
+        // WORKFLOW 1: Bekannte Spule -> Gewicht updaten
+        // Für alle anderen unbekannten Spulen (NTAG etc.) den Zuweisungs-Workflow starten.
+        isAssignmentPending = true;
+        pendingTagForAssignment = tagUuid;
+        pendingWeightForAssignment = measuredWeight;
+
+        Serial.println("Unbekannter Tag. Starte Zuweisungs-Workflow.");
+        oledDisplayText(tr(STR_ASSIGN_SPOOL));
+        oledSetPriority(DISPLAY_PRIORITY_ACTION, 15000); // Längerer Timeout, damit Nutzer Zeit hat
+        ws.textAll("{\"type\":\"assignment_pending\"}"); // Web-Clients informieren
+
+        filamanConnected = true;
+        return true; // Workflow erfolgreich gestartet
     }
 
     // Fehlerfall
@@ -190,6 +217,90 @@ bool syncBambuddySpool(String tagUuid, float measuredWeight) {
     oledClearPriority();
     return false;
 }
+
+String getUntaggedSpools() {
+    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
+        return "[]";
+    }
+
+    HTTPClient http;
+    http.setTimeout(10000);
+    String getUrl = filamanUrl + "/api/v1/inventory/spools";
+    http.begin(getUrl);
+    http.addHeader("Authorization", "Bearer " + filamanToken);
+    
+    int httpCode = http.GET();
+    String response = http.getString();
+    http.end();
+
+    if (httpCode != 200) {
+        Serial.printf("getUntaggedSpools: Fehler beim Abrufen der Spulen. HTTP-Code: %d\n", httpCode);
+        return "[]";
+    }
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, response);
+    if (error || !doc.is<JsonArray>()) {
+        Serial.println("getUntaggedSpools: Fehler beim Parsen der JSON-Antwort.");
+        return "[]";
+    }
+
+    JsonDocument filteredDoc;
+    JsonArray filteredArray = filteredDoc.to<JsonArray>();
+
+    for (JsonObject spool : doc.as<JsonArray>()) {
+        if (spool["tag_uid"].isNull() || (spool["tag_uid"].is<String>() && spool["tag_uid"].as<String>().isEmpty())) {
+            JsonObject newSpool = filteredArray.add<JsonObject>();
+            // Alle gewünschten Felder für die Auswahl hinzufügen
+            newSpool["id"] = spool["id"];
+            newSpool["brand"] = spool["brand"];
+            newSpool["material"] = spool["material"];
+            newSpool["subtype"] = spool["subtype"];
+            newSpool["color_name"] = spool["color_name"];
+            newSpool["created_at"] = spool["created_at"];
+            newSpool["label_weight"] = spool["label_weight"];
+            newSpool["last_scale_weight"] = spool["last_scale_weight"];
+        }
+    }
+
+    String filteredResponse;
+    serializeJson(filteredDoc, filteredResponse);
+    return filteredResponse;
+}
+
+bool linkTag(int spoolId, const String& tagUid) {
+    if (!checkFilamanRegistration() || WiFi.status() != WL_CONNECTED) {
+        return false;
+    }
+
+    HTTPClient http;
+    http.setTimeout(10000);
+    String postUrl = filamanUrl + "/api/v1/inventory/spools/" + String(spoolId) + "/link-tag";
+    http.begin(postUrl);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", "Bearer " + filamanToken);
+
+    JsonDocument postDoc;
+    postDoc["tag_uid"] = tagUid;
+    postDoc["data_origin"] = "nfc_link";
+
+    String payload;
+    serializeJson(postDoc, payload);
+
+    Serial.printf("Verlinke Tag %s mit Spule %d\n", tagUid.c_str(), spoolId);
+    Serial.println("Sende Payload: " + payload);
+
+    // Laut API-Dokumentation wird PATCH für das Verlinken eines Tags erwartet.
+    int postCode = http.PATCH(payload);
+    String responseBody = http.getString();
+    http.end();
+
+    Serial.printf("Link-Request beendet. HTTP-Code: %d\n", postCode);
+    Serial.println("Server-Antwort: " + responseBody);
+
+    return (postCode == 200 || postCode == 201 || postCode == 204);
+}
+
 
 void filamanApiTask(void* pvParameters) {
     for (;;) {

@@ -138,6 +138,11 @@ void setupWebserver(AsyncWebServer &server) {
         request->send(LittleFS, "/upgrade.html", "text/html");
     });
 
+    server.on("/assign", HTTP_GET, [](AsyncWebServerRequest *request){
+        Serial.println("Web: Request /assign");
+        request->send(LittleFS, "/assign.html", "text/html");
+    });
+
     server.on("/version.txt", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(LittleFS, "/version.txt", "text/plain");
     });
@@ -163,6 +168,51 @@ void setupWebserver(AsyncWebServer &server) {
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response);
+    });
+
+    server.on("/api/pending-assignment", HTTP_GET, [](AsyncWebServerRequest *request){
+        if (isAssignmentPending) {
+            JsonDocument doc;
+            doc["tag_uid"] = pendingTagForAssignment;
+            doc["weight"] = pendingWeightForAssignment;
+            String response;
+            serializeJson(doc, response);
+            request->send(200, "application/json", response);
+        } else {
+            request->send(200, "application/json", "{}");
+        }
+    });
+
+    server.on("/api/untagged-spools", HTTP_GET, [](AsyncWebServerRequest *request){
+        String untaggedSpoolsJson = getUntaggedSpools();
+        request->send(200, "application/json", untaggedSpoolsJson);
+    });
+
+    server.on("/api/link-tag", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+        JsonDocument doc;
+        if (deserializeJson(doc, (const char*)data, len) != DeserializationError::Ok) {
+            request->send(400, "application/json", "{\"success\":false, \"error\":\"Invalid JSON\"}");
+            return;
+        }
+
+        int spoolId = doc["spool_id"] | -1;
+        bool updateWeight = doc["update_weight"] | false;
+
+        if (spoolId <= 0 || !isAssignmentPending) {
+            request->send(400, "application/json", "{\"success\":false, \"error\":\"Invalid request\"}");
+            return;
+        }
+
+        if (linkTag(spoolId, pendingTagForAssignment)) {
+            if (updateWeight) {
+                // Starte einen asynchronen Gewichts-Update-Task für die gerade verlinkte Spule
+                syncBambuddySpoolAsync(pendingTagForAssignment, pendingWeightForAssignment);
+            }
+            clearPendingAssignment();
+            request->send(200, "application/json", "{\"success\":true}");
+        } else {
+            request->send(500, "application/json", "{\"success\":false, \"error\":\"Failed to link tag\"}");
+        }
     });
 
     server.on("/api/register", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){

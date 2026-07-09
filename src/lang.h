@@ -45,6 +45,7 @@ enum StringID : uint8_t {
     STR_API_CONN_LOST,
     STR_API_ERROR,
     STR_API_OFFLINE,
+    STR_ASSIGN_SPOOL,
     STR_WEIGHT_SENT_REST,
 
     // Errors
@@ -61,7 +62,9 @@ enum StringID : uint8_t {
     STR_UPDATE,
     STR_DOWNLOAD,
 
-    STR_COUNT  // must be last
+    // Special cases
+    STR_BAMBU_SPOOL_DETECTED,
+    STR_COUNT // Keep this last for array sizing
 };
 
 // Current language (default: English)

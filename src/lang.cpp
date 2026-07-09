@@ -36,6 +36,7 @@ static const char EN_NOT_REGISTERED[]    = "Not Registered";
 static const char EN_API_CONN_LOST[]     = "API Connection Lost";
 static const char EN_API_ERROR[]         = "API Error";
 static const char EN_API_OFFLINE[]       = "API offline";
+static const char EN_ASSIGN_SPOOL[]      = "Assign Spool in Web-UI";
 static const char EN_WEIGHT_SENT_REST[]  = "Weight sent, rest:";
 
 static const char EN_FAILURE[]           = "Failure";
@@ -48,6 +49,7 @@ static const char EN_WIFI_RECONN[]       = "WiFi reconnecting";
 
 static const char EN_UPDATE[]            = "Update";
 static const char EN_DOWNLOAD[]          = "Download";
+static const char EN_BAMBU_SPOOL_DETECTED[] = "Bambu Spool, use AMS";
 
 // =====================================================================
 // German strings
@@ -81,6 +83,7 @@ static const char DE_NOT_REGISTERED[]    = "Nicht registriert";
 static const char DE_API_CONN_LOST[]     = "API-Verbindung weg";
 static const char DE_API_ERROR[]         = "API-Fehler";
 static const char DE_API_OFFLINE[]       = "API offline";
+static const char DE_ASSIGN_SPOOL[]      = "Spule im Web-UI zuweisen";
 static const char DE_WEIGHT_SENT_REST[]  = "Gesendet, Rest:";
 
 static const char DE_FAILURE[]           = "Fehler";
@@ -88,11 +91,12 @@ static const char DE_FAILURE_EXCL[]      = "Fehler!";
 static const char DE_NO_RFID_BOARD[]     = "Kein RFID-Board";
 
 static const char DE_WIFI_CONFIG[]       = "WiFi Konfig-Modus";
-static const char DE_WIFI_NOT_CONN[]     = "WiFi nicht verbunden Portal pruefen";
+static const char DE_WIFI_NOT_CONN[]     = "WiFi nicht verbunden Portal prüfen";
 static const char DE_WIFI_RECONN[]       = "WiFi Neuverbindung";
 
 static const char DE_UPDATE[]            = "Update";
 static const char DE_DOWNLOAD[]          = "Download";
+static const char DE_BAMBU_SPOOL_DETECTED[] = "Bambu Spule, AMS nutzen";
 
 // =====================================================================
 // String table: [StringID][Lang]
@@ -131,6 +135,7 @@ static const char* const stringTable[STR_COUNT][LANG_COUNT] = {
     { EN_API_CONN_LOST,    DE_API_CONN_LOST },
     { EN_API_ERROR,        DE_API_ERROR },
     { EN_API_OFFLINE,      DE_API_OFFLINE },
+    { EN_ASSIGN_SPOOL,     DE_ASSIGN_SPOOL },
     { EN_WEIGHT_SENT_REST, DE_WEIGHT_SENT_REST },
 
     // Errors
@@ -146,6 +151,9 @@ static const char* const stringTable[STR_COUNT][LANG_COUNT] = {
     // OTA
     { EN_UPDATE,           DE_UPDATE },
     { EN_DOWNLOAD,         DE_DOWNLOAD },
+
+    // Special
+    { EN_BAMBU_SPOOL_DETECTED, DE_BAMBU_SPOOL_DETECTED },
 };
 
 const char* tr(StringID id) {

@@ -1,13 +1,13 @@
 :root {
-    --bg: #0c1612;
-    --bg-elevated: #13261d;
-    --bg-soft: #183225;
-    --text: #e9f3ec;
-    --text-muted: #b5c7bd;
-    --accent: #4ee3a2;
-    --accent-2: #6cc6ff;
+    --bg: #1a1a1a;
+    --bg-elevated: #2c2c2c;
+    --bg-soft: #383838;
+    --text: #e6e6e6;
+    --text-muted: #8c8c8c;
+    --accent: #0096FF; /* Bambu-style Blue */
+    --accent-2: #4ab3ff;
     --accent-3: #f7c86a;
-    --border: rgba(255, 255, 255, 0.08);
+    --border: #404040;
     --error-text: #fca5a5;
     --success-text: #86efac;
     --radius-md: 14px;
@@ -28,10 +28,7 @@
 body {
     font-family: var(--font-sans);
     background-color: var(--bg);
-    background-image: 
-        radial-gradient(circle at 0% 0%, rgba(78, 227, 162, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 100% 100%, rgba(108, 198, 255, 0.05) 0%, transparent 50%),
-        linear-gradient(140deg, #0c1612 0%, #12251b 45%, #0b1410 100%);
+    background-image: radial-gradient(circle at 100% 100%, rgba(0, 150, 255, 0.08) 0%, transparent 50%);
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
@@ -182,13 +179,13 @@ p {
 
 .fm-btn-primary {
     background: var(--accent);
-    color: #0c1612;
-    box-shadow: 0 0 20px rgba(78, 227, 162, 0.2);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
 }
 
 .fm-btn-primary:hover {
     transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(78, 227, 162, 0.4);
+    box-shadow: 0 0 30px rgba(0, 150, 255, 0.4);
 }
 
 .fm-btn-outline {

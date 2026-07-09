@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bambuddy Scale - Upgrade</title>
+    <title>Bambuddy Scale - Update</title>
     <link rel="icon" type="image/png" href="/favicon.ico">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,21 +11,21 @@
     <div class="fm-page">
         <aside class="fm-sidebar">
             <div class="sidebar-brand">
-                <img src="/logo.png" alt="Logo" class="sidebar-logo">
                 <div class="brand-text">
                     <h1>Bambuddy Scale <span class="version"></span></h1>
                 </div>
             </div>
             <nav class="fm-nav">
                 <a href="/">Start</a>
-                <a href="/waage">Scale</a>
+                <a href="/assign">Spule zuordnen</a>
+                <a href="/waage">Waage</a>
                 <a href="/setup">Setup</a>
                 <a href="/upgrade" class="active">Upgrade</a>
             </nav>
             <div class="sidebar-status">
                 <div class="status-item">
                     <span class="status-dot" id="filamanDot"></span>
-                    <span>System Sync</span>
+                    <span>System-Sync</span>
                 </div>
                 <div class="status-item">
                     <span id="ramStatus"></span>
@@ -35,41 +35,41 @@
 
         <main class="fm-main">
             <header>
-                <h1>Firmware Upgrade</h1>
-                <p>Keep your device up to date with the latest features and security improvements.</p>
+                <h1>Firmware-Update</h1>
+                <p>Halten Sie Ihr Gerät mit den neuesten Funktionen und Sicherheitsverbesserungen auf dem neuesten Stand.</p>
             </header>
 
             <div class="fm-card" style="border-color: var(--accent-3);">
-                <h3 style="color: var(--accent-3);">Important Warning</h3>
-                <p>Do <strong>not</strong> power off the device during the update process. A failed update may require manual recovery.</p>
+                <h3 style="color: var(--accent-3);">Wichtiger Hinweis</h3>
+                <p>Schalten Sie das Gerät während des Update-Vorgangs <strong>nicht</strong> aus. Ein fehlgeschlagenes Update erfordert möglicherweise eine manuelle Wiederherstellung.</p>
             </div>
 
             <div class="features-grid">
                 <div class="fm-card">
-                    <h2>Firmware Update</h2>
-                    <p>Upload a new binary firmware file.</p>
+                    <h2>Firmware-Update</h2>
+                    <p>Laden Sie eine neue binäre Firmware-Datei hoch.</p>
                     <form id="firmwareForm" enctype='multipart/form-data' data-type="firmware">
                         <div class="fm-form-group">
                             <input type='file' name='update' accept='.bin' required class="fm-input">
                         </div>
-                        <input type='submit' value='Start Update' class="fm-btn fm-btn-primary" style="width: 100%;">
+                        <input type='submit' value='Update starten' class="fm-btn fm-btn-primary" style="width: 100%;">
                     </form>
                 </div>
 
                 <div class="fm-card">
-                    <h2>Webpage Update</h2>
-                    <p>Update the internal web interface assets.</p>
+                    <h2>Weboberflächen-Update</h2>
+                    <p>Aktualisieren Sie die Dateien der internen Weboberfläche.</p>
                     <form id="webpageForm" enctype='multipart/form-data' data-type="webpage">
                         <div class="fm-form-group">
                             <input type='file' name='update' accept='.bin' required class="fm-input">
                         </div>
-                        <input type='submit' value='Start Update' class="fm-btn fm-btn-outline" style="width: 100%;">
+                        <input type='submit' value='Update starten' class="fm-btn fm-btn-outline" style="width: 100%;">
                     </form>
                 </div>
             </div>
 
             <div id="progressContainer" class="fm-card" style="display: none; margin-top: 2rem;">
-                <h3 id="updateStatus">Update in progress...</h3>
+                <h3 id="updateStatus">Update läuft...</h3>
                 <div style="width: 100%; background: var(--bg); height: 24px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin: 1rem 0;">
                     <div id="progressBar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
                 </div>
@@ -138,7 +138,7 @@
             xhr.open('POST', '/update', true);
             xhr.onload = function() {
                 if (xhr.status !== 200) {
-                    status.textContent = "Update failed: " + xhr.responseText;
+                    status.textContent = "Update fehlgeschlagen: " + xhr.responseText;
                     status.style.color = 'var(--error-text)';
                     updateInProgress = false;
                     document.querySelectorAll('input[type=submit]').forEach(btn => btn.disabled = false);

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spule zuordnen - Bambuddy Scale</title>
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="fm-page">
+        <aside class="fm-sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-text">
+                    <h1>Bambuddy Scale <span class="version"></span></h1>
+                </div>
+            </div>
+            <nav class="fm-nav">
+                <a href="/">Start</a>
+                <a href="/assign" class="active">Spule zuordnen</a>
+                <a href="/waage">Waage</a>
+                <a href="/setup">Setup</a>
+            </nav>
+            <div class="sidebar-status">
+                <div class="status-item">
+                    <span class="status-dot" id="filamanDot"></span>
+                    <span>System-Sync</span>
+                </div>
+                <div class="status-item">
+                    <span id="ramStatus"></span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="fm-main">
+            <header>
+                <h1>Spule zuordnen</h1>
+                <p>Verknüpfen Sie eine neue NFC-Tag-ID mit einer vorhandenen Spule in Bambuddy.</p>
+            </header>
+
+            <div id="assignment-info" class="fm-card" style="display: none;">
+                <h2>Neue Spule erkannt</h2>
+                <p>Tag-ID: <strong id="tag-uid"></strong></p>
+                <p>Gewicht: <strong id="tag-weight"></strong> g</p>
+                <div style="margin-top: 1rem;">
+                    <button id="cancel-assignment-btn" class="fm-btn fm-btn-danger">Zuweisung abbrechen</button>
+                </div>
+            </div>
+
+            <div id="main-content" class="fm-card" style="display: none;">
+                <button id="load-spools-btn" class="fm-btn fm-btn-primary">Ungetaggte Spulen laden</button>
+                
+                <div id="spool-list-container" style="display: none; margin-top: 1.5rem;">
+                    <h3>Wähle eine Spule aus Bambuddy:</h3>
+                    <select id="spool-select" class="fm-input" style="margin-bottom: 1rem;"></select>
+                    
+                    <label class="status-pill" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="update-weight-checkbox">
+                        <span id="update-weight-label">Gewicht übernehmen</span>
+                    </label>
+
+                    <button id="link-spool-btn" class="fm-btn fm-btn-primary" style="margin-top: 1.5rem;">Spule verknüpfen</button>
+                </div>
+            </div>
+
+            <div id="status-message" class="fm-card" style="display: none;"></div>
+            <div id="no-assignment" class="fm-card" style="display: none;">
+                <p>Aktuell liegt keine neue Spule zur Zuweisung vor. Bitte scannen Sie eine neue Spule.</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // WebSocket and version fetching logic (same as other pages)
+        fetch('/api/version').then(r => r.json()).then(d => {
+            const v = document.querySelector('.version');
+            if(v) v.textContent = 'v' + d.version;
+        });
+        let ws = null;
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'heartbeat') {
+                    const dot = document.getElementById('filamanDot');
+                    if(dot) dot.className = data.filaman_connected ? 'status-dot online' : 'status-dot offline';
+                    const ram = document.getElementById('ramStatus');
+                    if(ram) ram.textContent = data.freeHeap + ' KB free';
+                }
+                // If a new assignment comes in while on the page, reload to show it.
+                if (data.type === 'assignment_pending') {
+                    location.reload();
+                }
+            };
+            ws.onclose = () => setTimeout(connectWebSocket, 2000);
+        }
+        connectWebSocket();
+        setInterval(() => { if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'heartbeat'})); }, 5000);
+
+        // Page specific logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const assignmentInfo = document.getElementById('assignment-info');
+            const mainContent = document.getElementById('main-content');
+            const noAssignment = document.getElementById('no-assignment');
+            const tagUidElem = document.getElementById('tag-uid');
+            const tagWeightElem = document.getElementById('tag-weight');
+            const loadSpoolsBtn = document.getElementById('load-spools-btn');
+            const spoolListContainer = document.getElementById('spool-list-container');
+            const spoolSelect = document.getElementById('spool-select');
+            const updateWeightCheckbox = document.getElementById('update-weight-checkbox');
+            const updateWeightLabel = document.getElementById('update-weight-label');
+            const linkSpoolBtn = document.getElementById('link-spool-btn');
+            const cancelBtn = document.getElementById('cancel-assignment-btn');
+            const statusMessage = document.getElementById('status-message');
+
+            function showStatus(message, isError = false) {
+                statusMessage.textContent = message;
+                statusMessage.style.color = isError ? 'var(--error-text)' : 'var(--success-text)';
+                statusMessage.style.display = 'block';
+                setTimeout(() => statusMessage.style.display = 'none', 5000);
+            }
+
+            // 1. Prüfen, ob eine Zuweisung ansteht
+            fetch('/api/pending-assignment')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.tag_uid) {
+                        assignmentInfo.style.display = 'block';
+                        mainContent.style.display = 'block';
+                        tagUidElem.textContent = data.tag_uid;
+                        tagWeightElem.textContent = data.weight;
+                        updateWeightLabel.textContent = `Gewicht auf ${data.weight}g aktualisieren`;
+                    } else {
+                        noAssignment.style.display = 'block';
+                    }
+                });
+
+            // Zuweisung abbrechen
+            cancelBtn.addEventListener('click', () => {
+                if (confirm('Möchten Sie diese Zuweisung wirklich abbrechen?')) {
+                    fetch('/api/clear-assignment', { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                showStatus('Fehler beim Abbrechen der Zuweisung.', true);
+                            }
+                        })
+                        .catch(() => showStatus('Netzwerkfehler beim Abbrechen.', true));
+                }
+            });
+
+            // 2. Ungetaggte Spulen laden
+            loadSpoolsBtn.addEventListener('click', () => {
+                loadSpoolsBtn.disabled = true;
+                loadSpoolsBtn.textContent = 'Lade...';
+                fetch('/api/untagged-spools')
+                    .then(res => res.json())
+                    .then(spools => {
+                        spoolSelect.innerHTML = '<option value="">-- Bitte wählen --</option>';
+                        if (spools.length > 0) {
+                            spools.forEach(spool => {
+                                const option = document.createElement('option');
+                                option.value = spool.id;
+                                
+                                const brand = spool.brand || 'k.A.';
+                                const material = spool.material || 'k.A.';
+                                const subtype = spool.subtype ? ` ${spool.subtype}` : '';
+                                const color = spool.color_name || 'k.A.';
+                                const createdAt = spool.created_at ? new Date(spool.created_at).toLocaleDateString('de-DE') : 'k.A.';
+                                const labelWeight = spool.label_weight || 'k.A.';
+                                const lastScaleWeight = spool.last_scale_weight !== null ? spool.last_scale_weight : '---';
+                                
+                                // Format: Marke - Material Subtype (Farbe) | Erstellt: TT.MM.JJJJ | Label: Xg | Letztes Gewicht: Yg
+                                option.textContent = `${brand} - ${material}${subtype} (${color}) | Erstellt: ${createdAt} | Label: ${labelWeight}g | Letztes Gewicht: ${lastScaleWeight}g`;
+                                spoolSelect.appendChild(option);
+                            });
+                            spoolListContainer.style.display = 'block';
+                        } else {
+                            showStatus('Keine ungetaggten Spulen in Bambuddy gefunden.', true);
+                        }
+                    })
+                    .finally(() => {
+                        loadSpoolsBtn.disabled = false;
+                        loadSpoolsBtn.textContent = 'Ungetaggte Spulen laden';
+                    });
+            });
+
+            // 3. Spule verknüpfen
+            linkSpoolBtn.addEventListener('click', () => {
+                const spoolId = spoolSelect.value;
+                if (!spoolId) {
+                    showStatus('Bitte eine Spule auswählen.', true);
+                    return;
+                }
+
+                linkSpoolBtn.disabled = true;
+                linkSpoolBtn.textContent = 'Verknüpfe...';
+
+                const payload = {
+                    spool_id: parseInt(spoolId),
+                    update_weight: updateWeightCheckbox.checked
+                };
+
+                fetch('/api/link-tag', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus('Spule erfolgreich verknüpft! Sie können nun eine neue Spule scannen.', false);
+                        mainContent.style.display = 'none';
+                        assignmentInfo.style.display = 'none';
+                    } else {
+                        showStatus(`Fehler: ${data.error || 'Unbekannter Fehler'}`, true);
+                    }
+                })
+                .finally(() => {
+                    linkSpoolBtn.disabled = false;
+                    linkSpoolBtn.textContent = 'Spule verknüpfen';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

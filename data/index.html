@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bambuddy Scale - Filament Management</title>
+    <title>Bambuddy Scale - Filament-Verwaltung</title>
     <link rel="icon" type="image/png" href="/favicon.ico">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,21 +11,20 @@
     <div class="fm-page">
         <aside class="fm-sidebar">
             <div class="sidebar-brand">
-                <img src="/logo.png" alt="Logo" class="sidebar-logo">
                 <div class="brand-text">
                     <h1>Bambuddy Scale <span class="version"></span></h1>
                 </div>
             </div>
             <nav class="fm-nav">
                 <a href="/" class="active">Start</a>
-                <a href="/waage">Scale</a>
+                <a href="/assign">Spule zuordnen</a>
+                <a href="/waage">Waage</a>
                 <a href="/setup">Setup</a>
-                <a href="/upgrade">Upgrade</a>
             </nav>
             <div class="sidebar-status">
                 <div class="status-item">
                     <span class="status-dot" id="filamanDot"></span>
-                    <span>System Sync</span>
+                    <span>System-Sync</span>
                 </div>
                 <div class="status-item">
                     <span id="ramStatus"></span>
@@ -35,37 +34,35 @@
 
         <main class="fm-main">
             <header>
-                <h1>Welcome to Bambuddy Scale</h1>
-                <p>Your smart solution for <strong>Filament Management</strong> in 3D printing.</p>
+                <h1>Willkommen bei Bambuddy Scale</h1>
+                <p>Ihre intelligente Lösung für die <strong>Filament-Verwaltung</strong> im 3D-Druck.</p>
             </header>
 
             <div class="fm-card" style="border-color: var(--accent-3); background: rgba(247, 200, 106, 0.05);">
-                <h3 style="color: var(--accent-3);">System Compatibility</h3>
+                <h3 style="color: var(--accent-3);">Systemkompatibilität</h3>
                 <p>
-                    This scale has been customized to automatically sync spool weights and create auto-gen spools with your local <strong>Bambuddy</strong> instance.
+                    Diese Waage wurde speziell angepasst, um Spulengewichte automatisch mit Ihrer lokalen <strong>Bambuddy</strong>-Instanz zu synchronisieren.
                 </p>
             </div>
 
             <div class="fm-card">
-                <h2>About this Firmware</h2>
-                <p>
-                    Based on the FilaMan project, this firmware is designed to simplify filament spool management. Identify and weigh your spools 
-                    automatically and keep your inventory synced with Bambuddy.
-                </p>
+                <h2>Über diese Firmware</h2>
+                <p>Diese Firmware vereinfacht die Verwaltung von Filamentspulen. Identifizieren und wiegen Sie Ihre Spulen 
+                    automatisch und halten Sie Ihr Inventar mit Bambuddy synchron.</p>
             </div>
 
             <div class="features-grid">
                 <div class="fm-card fm-card-hover">
-                    <h3>Spool Identification</h3>
-                    <p>Easily identify filament spools using NFC tags for instant tracking.</p>
+                    <h3>Spulenerkennung</h3>
+                    <p>Identifizieren Sie Filamentspulen einfach per NFC-Tag für eine sofortige Nachverfolgung.</p>
                 </div>
                 <div class="fm-card fm-card-hover">
-                    <h3>Automatic Sync</h3>
-                    <p>Seamlessly update spool data via the Bambuddy API for accurate tracking.</p>
+                    <h3>Automatischer Sync</h3>
+                    <p>Aktualisieren Sie Spulendaten nahtlos über die Bambuddy-API für eine genaue Bestandsführung.</p>
                 </div>
                 <div class="fm-card fm-card-hover">
-                    <h3>Scale Integration</h3>
-                    <p>Built-in scale support for precise remaining weight calculation.</p>
+                    <h3>Waagen-Integration</h3>
+                    <p>Integrierte Waagen-Unterstützung für eine präzise Berechnung des Restgewichts.</p>
                 </div>
             </div>
         </main>

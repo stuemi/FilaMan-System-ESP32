@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,21 +11,20 @@
     <div class="fm-page">
         <aside class="fm-sidebar">
             <div class="sidebar-brand">
-                <img src="/logo.png" alt="Logo" class="sidebar-logo">
                 <div class="brand-text">
                     <h1>Bambuddy Scale <span class="version"></span></h1>
                 </div>
             </div>
             <nav class="fm-nav">
                 <a href="/">Start</a>
-                <a href="/waage">Scale</a>
+                <a href="/assign">Spule zuordnen</a>
+                <a href="/waage">Waage</a>
                 <a href="/setup" class="active">Setup</a>
-                <a href="/upgrade">Upgrade</a>
             </nav>
             <div class="sidebar-status">
                 <div class="status-item">
                     <span class="status-dot" id="filamanDot"></span>
-                    <span>System Sync</span>
+                    <span>System-Sync</span>
                 </div>
                 <div class="status-item">
                     <span id="ramStatus"></span>
@@ -35,47 +34,45 @@
 
         <main class="fm-main">
             <header>
-                <h1>Device Setup</h1>
-                <p>Configure your device to connect it with your Bambuddy server.</p>
+                <h1>Geräte-Setup</h1>
+                <p>Konfigurieren Sie Ihr Gerät, um es mit Ihrem Bambuddy-Server zu verbinden.</p>
             </header>
 
             <div class="fm-card">
-                <h2>Server Configuration</h2>
-                <p>Current Status: <strong style="color: var(--accent);">%registered%</strong></p>
+                <h2>Server-Konfiguration</h2>
+                <p>Aktueller Status: <strong style="color: var(--accent);">%registered%</strong></p>
                 
                 <div class="fm-form-group" style="margin-top: 2rem;">
-                    <label class="fm-label" for="filamanUrl">Bambuddy Server URL</label>
-                    <input type="text" id="filamanUrl" class="fm-input" value="%filamanUrl%" placeholder="e.g. http://192.168.1.10:8000">
-                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter the base URL of your Bambuddy instance (without trailing slash).</p>
+                    <label class="fm-label" for="filamanUrl">Bambuddy Server-URL</label>
+                    <input type="text" id="filamanUrl" class="fm-input" value="%filamanUrl%" placeholder="z.B. http://192.168.1.10:3000">
+                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Geben Sie die Basis-URL Ihrer Bambuddy-Instanz ein (ohne / am Ende).</p>
                 </div>
                 
                 <div class="fm-form-group" style="margin-top: 1rem;">
-                    <label class="fm-label" for="bambuddyApiKey">Bambuddy API Key</label>
+                    <label class="fm-label" for="bambuddyApiKey">Bambuddy API-Schlüssel</label>
                     <input type="password" id="bambuddyApiKey" class="fm-input" value="%apiKey%" placeholder="bb_...">
-                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Enter your Bambuddy API Key for authentication.</p>
+                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Geben Sie Ihren Bambuddy API-Schlüssel zur Authentifizierung ein.</p>
                 </div>
 
-                <button id="registerBtn" class="fm-btn fm-btn-primary">Save Configuration</button>
+                <button id="registerBtn" class="fm-btn fm-btn-primary">Konfiguration speichern</button>
                 <div id="statusMessage" style="margin-top: 1.5rem;"></div>
             </div>
 
             <div class="fm-card">
-                <h2>General Settings</h2>
+                <h2>Allgemeine Einstellungen</h2>
                 
                 <div class="fm-form-group" style="margin-top: 1rem;">
-                    <label class="fm-label" for="languageSelect">Display Language</label>
+                    <label class="fm-label" for="languageSelect">Display-Sprache</label>
                     <select id="languageSelect" class="fm-input">
                         <option value="en">English</option>
                         <option value="de">Deutsch</option>
                     </select>
                 </div>
-            </div>
 
-            <div class="fm-card">
-                <h2>Display Settings</h2>
+                <h2>Display-Einstellungen</h2>
 
                 <div class="fm-form-group" style="margin-top: 1rem;">
-                    <label class="fm-label" for="sleepTimeoutSelect">OLED Sleep Timeout</label>
+                    <label class="fm-label" for="sleepTimeoutSelect">OLED Ruhemodus-Timeout</label>
                     <select id="sleepTimeoutSelect" class="fm-input">
                         <option value="0">Disabled (always on)</option>
                         <option value="30">30 seconds</option>
@@ -84,7 +81,7 @@
                         <option value="300">5 minutes</option>
                         <option value="600">10 minutes</option>
                     </select>
-                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Display wakes automatically on weight change or NFC tag read.</p>
+                    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Das Display wacht bei Gewichtsänderung oder NFC-Scan automatisch auf.</p>
                 </div>
                 <div id="sleepStatusMessage" style="margin-top: 0.5rem;"></div>
             </div>
@@ -101,11 +98,53 @@
             })
             .catch(error => console.error('Error fetching version:', error));
 
+        // I18N
+        const translations = {
+            en: {
+                "sleep-disabled": "Disabled (always on)",
+                "sleep-30s": "30 seconds",
+                "sleep-1m": "1 minute",
+                "sleep-2m": "2 minutes",
+                "sleep-5m": "5 minutes",
+                "sleep-10m": "10 minutes",
+            },
+            de: {
+                "sleep-disabled": "Deaktiviert (immer an)",
+                "sleep-30s": "30 Sekunden",
+                "sleep-1m": "1 Minute",
+                "sleep-2m": "2 Minuten",
+                "sleep-5m": "5 Minuten",
+                "sleep-10m": "10 Minuten",
+            }
+        };
+
+        const sleepOptions = [
+            { value: "0", key: "sleep-disabled" }, { value: "30", key: "sleep-30s" },
+            { value: "60", key: "sleep-1m" }, { value: "120", key: "sleep-2m" },
+            { value: "300", key: "sleep-5m" }, { value: "600", key: "sleep-10m" }
+        ];
+
         // Language setting
         fetch('/api/language')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('languageSelect').value = data.lang;
+                // Populate sleep timeout select based on language
+                const select = document.getElementById('sleepTimeoutSelect');
+                select.innerHTML = '';
+                sleepOptions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = translations[data.lang] ? translations[data.lang][opt.key] : translations['en'][opt.key];
+                    select.appendChild(option);
+                });
+                // Re-fetch and set the current sleep value after populating
+                fetch('/api/display')
+                    .then(response => response.json())
+                    .then(data => {
+                        const sel = document.getElementById('sleepTimeoutSelect');
+                        sel.value = String(data.sleepTimeout);
+                    });
             })
             .catch(error => console.error('Error fetching language:', error));
 
@@ -118,27 +157,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.log('Language saved');
+                    console.log('Sprache gespeichert');
+                    location.reload(); // Reload to apply new language to all text
                 }
             })
-            .catch(error => console.error('Error saving language:', error));
+            .catch(error => console.error('Fehler beim Speichern der Sprache:', error));
         });
 
         // Display sleep timeout setting
-        fetch('/api/display')
-            .then(response => response.json())
-            .then(data => {
-                const sel = document.getElementById('sleepTimeoutSelect');
-                const val = String(data.sleepTimeout);
-                // Select closest matching option
-                let matched = false;
-                for (let i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].value === val) { sel.value = val; matched = true; break; }
-                }
-                if (!matched) sel.value = '0';
-            })
-            .catch(error => console.error('Error fetching display settings:', error));
-
         document.getElementById('sleepTimeoutSelect').addEventListener('change', function() {
             const msg = document.getElementById('sleepStatusMessage');
             fetch('/api/display', {
@@ -149,15 +175,15 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    msg.textContent = 'Saved.';
+                    msg.textContent = 'Gespeichert.';
                     msg.style.color = 'var(--success-text)';
                     setTimeout(() => { msg.textContent = ''; }, 2000);
                 }
             })
             .catch(error => {
-                msg.textContent = 'Error saving setting.';
+                msg.textContent = 'Fehler beim Speichern der Einstellung.';
                 msg.style.color = 'var(--error-text)';
-                console.error('Error saving display settings:', error);
+                console.error('Fehler beim Speichern der Display-Einstellungen:', error);
             });
         });
 
@@ -167,12 +193,12 @@
             const statusMessage = document.getElementById('statusMessage');
 
             if (!url || !apiKey) {
-                statusMessage.textContent = 'Please provide both URL and API Key';
+                statusMessage.textContent = 'Bitte geben Sie sowohl URL als auch API-Schlüssel an.';
                 statusMessage.style.color = 'var(--error-text)';
                 return;
             }
 
-            statusMessage.textContent = 'Saving configuration...';
+            statusMessage.textContent = 'Speichere Konfiguration...';
             statusMessage.style.color = 'var(--text-muted)';
 
             fetch('/api/register', {
@@ -183,17 +209,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    statusMessage.textContent = 'Configuration saved successfully!';
+                    statusMessage.textContent = 'Konfiguration erfolgreich gespeichert!';
                     statusMessage.style.color = 'var(--success-text)';
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    statusMessage.textContent = 'Saving failed. Please check your URL.';
+                    statusMessage.textContent = 'Speichern fehlgeschlagen. Bitte prüfen Sie Ihre URL.';
                     statusMessage.style.color = 'var(--error-text)';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                statusMessage.textContent = 'Network error. Please check connection.';
+                statusMessage.textContent = 'Netzwerkfehler. Bitte prüfen Sie die Verbindung.';
                 statusMessage.style.color = 'var(--error-text)';
             });
         });

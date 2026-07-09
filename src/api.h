@@ -21,6 +21,12 @@ typedef enum {
 extern volatile filamanApiStateType filamanApiState;
 extern bool filamanConnected;
 
+// State for the new assignment workflow
+extern bool isAssignmentPending;
+extern String pendingTagForAssignment;
+extern float pendingWeightForAssignment;
+
+
 // API functions (angepasst für Bambuddy Integration)
 bool initFilaman();
 bool registerDevice(const String& deviceCode); // Dummy für Kompatibilität
@@ -30,6 +36,9 @@ void syncBambuddySpoolAsync(String tagUuid, float weight); // Bambuddy Weiche
 // Internal blocking functions (used by async task)
 bool sendHeartbeat(); // Dummy
 bool syncBambuddySpool(String tagUuid, float weight); // Bambuddy Weiche
+String getUntaggedSpools();
+bool linkTag(int spoolId, const String& tagUid);
+void clearPendingAssignment();
 
 // Helper functions
 void saveFilamanConfig();
